@@ -1,0 +1,6 @@
+@SEM_Drahos_HostAddress = http://localhost:5201
+
+GET {{SEM_Drahos_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

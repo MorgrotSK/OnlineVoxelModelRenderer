@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SEM-Drahos", "SEM-Drahos\SEM-Drahos.csproj", "{4128F462-BA8E-47D6-8D61-84B0BE239B25}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FE3", "FE3\FE3.csproj", "{5DBEC79C-B5DF-49F7-938F-A35454D1834A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4128F462-BA8E-47D6-8D61-84B0BE239B25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4128F462-BA8E-47D6-8D61-84B0BE239B25}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4128F462-BA8E-47D6-8D61-84B0BE239B25}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4128F462-BA8E-47D6-8D61-84B0BE239B25}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DBEC79C-B5DF-49F7-938F-A35454D1834A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DBEC79C-B5DF-49F7-938F-A35454D1834A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DBEC79C-B5DF-49F7-938F-A35454D1834A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DBEC79C-B5DF-49F7-938F-A35454D1834A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

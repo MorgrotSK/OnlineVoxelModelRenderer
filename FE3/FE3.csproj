@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+        <CETCompat>false</CETCompat>
+
+
+        <!-- The following emscripten flags are required for Ab4d.SharpEngine to use WebGL from the browser -->
+        <EmccFlags>-lGL -s FULL_ES3=1 -sMAX_WEBGL_VERSION=2</EmccFlags>
+
+        <!-- unsafe code is required to use JSExport in CanvasInterop -->
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+        <!-- List of possible wasm properties: https://github.com/dotnet/runtime/blob/main/src/mono/wasm/build/WasmApp.Common.targets -->
+        <WasmEnableSIMD>true</WasmEnableSIMD>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <InvariantTimezone>true</InvariantTimezone>
+        <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <DebugSymbols>true</DebugSymbols>
+        <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
+        <WasmNativeStrip>false</WasmNativeStrip>
+        <WasmEmitSymbolMap>true</WasmEmitSymbolMap>
+        <WasmEmitSourceMap>true</WasmEmitSourceMap>
+        <CETCompat>false</CETCompat>
+
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <PublishTrimmed>true</PublishTrimmed>
+        <WasmBuildNative>true</WasmBuildNative>
+        <RunAOTCompilation>true</RunAOTCompilation>
+        <DebugType>none</DebugType>
+        <DebugSymbols>false</DebugSymbols>
+        <WasmEmitSymbolMap>false</WasmEmitSymbolMap>
+        <WasmEmitSourceMap>false</WasmEmitSourceMap>
+        <WasmNativeStrip>true</WasmNativeStrip>
+        <CETCompat>false</CETCompat>
+
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Ab4d.SharpEngine.Web" Version="0.8.9432-beta2" />
+        <PackageReference Include="MudBlazor" Version="9.0.0-preview.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!--The following NativeFileReference is required for Ab4d.SharpEngine.Web to use WebGL from the browser -->
+        <NativeFileReference Include="Native/libEGL.c" ScanForPInvokes="true" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!--The following javascript file is required for CanvasInterop class to be able to communicate with the browser -->
+        <WasmExtraFilesToDeploy Include="sharp-engine.js" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.9" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.9" PrivateAssets="all" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
+    </ItemGroup>
+
+</Project>

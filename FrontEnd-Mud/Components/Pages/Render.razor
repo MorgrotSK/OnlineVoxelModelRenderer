@@ -1,0 +1,263 @@
+﻿﻿@page "/objFileViewer"
+@using System.Numerics
+@using Ab4d.SharpEngine.Cameras
+@using Ab4d.SharpEngine.Common
+@using Ab4d.SharpEngine.SceneNodes
+@using Ab4d.SharpEngine.Browser
+@using Ab4d.SharpEngine.Utilities
+@implements IDisposable
+@inject IJSRuntime JS
+
+<PageTitle>Ab4d.SharpEngine.Web - OBJ file viewer</PageTitle>
+
+<h1>Ab4d.SharpEngine.Web - OBJ file viewer</h1>
+
+<p>This example shows how to load user obj and mtl files with Ab4d.SharpEngine.</p>
+<p>Note that loading texture from user selected files is not supported. 
+    But when obj files are part of the blazor project, 
+    then textures can be also imported as shown by the initially loaded teapot.</p>
+
+<SharpEngineSceneView @ref="sharpEngineSceneView" style="width: 70%; min-width: 400px; max-width: 1000px; height: 500px; margin-top: 10pt; border: solid black 1px"></SharpEngineSceneView>
+
+<br />
+<p>@_infoText</p>
+
+<div id="dropZone" style="width: 70%; min-width: 400px; height: 150px; border: 2px dashed #0078d4; border-radius: 10px; text-align: center; line-height: 150px; color: #555; font-family: sans-serif; cursor: pointer;">
+Drop obj or mtl file here or click to open file picker</div>
+<input type="file" id="fileInput" accept=".obj,.mtl" style="display: none;" />
+
+<script>
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    let dotNetInterop;
+
+    // Click to open file picker
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // Highlight on drag over
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.cursor = 'copy';
+        dropZone.style.backgroundColor = '#e0f3ff';
+    });
+
+    // Remove highlight on drag leave
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.cursor = 'pointer';
+        dropZone.style.backgroundColor = '';
+    });
+
+    // Handle dropped files
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.cursor = 'pointer';
+        dropZone.style.backgroundColor = '';
+
+        const files = e.dataTransfer.files;
+        handleFiles(files);
+    });
+
+    // Handle files from file picker
+    fileInput.addEventListener('change', (e) => {
+        if (areValidFiles(files))
+            handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        for (const file of files) {
+            console.log('File dropped:', file.name);
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const text = e.target.result;
+                dotNetInterop.invokeMethodAsync('FileImportedJS', file.name, text);
+            };
+
+            reader.readAsText(file);
+        }
+    }
+
+    function attachFileImportHandler(dotNetHelper) {
+        dotNetInterop = dotNetHelper;
+    }
+</script>
+
+@code {
+    // BOUND FIELDS:
+    private string _infoText = "Initializing...";
+
+    private SharpEngineSceneView sharpEngineSceneView = null!;
+
+    private TargetPositionCamera? _targetPositionCamera;
+    private PointerCameraController? _pointerCameraController;
+
+    private GroupNode? _importedSceneNode;
+
+    private string? _lastObjFileName;
+    private string? _lastObjFileContent;
+
+    private string? _lastMtlFileName;
+    private string? _lastMtlFileContent;
+
+    private DotNetObjectReference<ObjFileViewer>? _thisJSReference;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+
+        var scene = sharpEngineSceneView.Scene;
+        var sceneView = sharpEngineSceneView.SceneView;
+
+        sceneView.BackgroundColor = Colors.LightSkyBlue;
+
+        _targetPositionCamera = new TargetPositionCamera()
+        {
+            Heading = 30,
+            Attitude = -25,
+            Distance = 400,
+            TargetPosition = new Vector3(0, 0, 0),
+            ShowCameraLight = ShowCameraLightType.Auto,
+        };
+
+        sceneView.Camera = _targetPositionCamera;
+
+        _pointerCameraController = new PointerCameraController(sceneView)
+        {
+            RotateCameraConditions = PointerAndKeyboardConditions.LeftPointerButtonPressed,
+            MoveCameraConditions = PointerAndKeyboardConditions.LeftPointerButtonPressed | PointerAndKeyboardConditions.ControlKey,
+            ZoomMode = CameraZoomMode.PointerPosition,
+            RotateAroundPointerPosition = true,
+            IsPinchZoomEnabled = true, // zoom with touch pinch gesture
+            IsPinchMoveEnabled = true  // move camera with two fingers
+        };
+
+        scene.SetAmbientLight(0.2f);
+
+
+        var wireGridNode = new WireGridNode("Wire grid")
+        {
+            CenterPosition = new Vector3(0, -0.5f, 0),
+            Size = new Vector2(160, 160),
+
+            WidthDirection = new Vector3(1, 0, 0),   // this is also the default value
+            HeightDirection = new Vector3(0, 0, -1), // this is also the default value
+
+            WidthCellsCount = 20,
+            HeightCellsCount = 20,
+
+            MajorLineColor = Colors.Black,
+            MajorLineThickness = 1,
+
+            MinorLineColor = Colors.Gray,
+            MinorLineThickness = 1,
+
+            MajorLinesFrequency = 5,
+
+            IsClosed = true,
+        };
+        scene.RootNode.Add(wireGridNode);
+
+
+        string objUrl = "models/Teapot-with-material.obj";
+
+        try
+        {
+            var objImporter = new ObjImporter(sharpEngineSceneView.Scene);
+
+            var importedNode = await objImporter.ImportAsync(objUrl);
+
+            Utilities.ModelUtils.PositionAndScaleSceneNode(importedNode, new Vector3(0, 0, 0), PositionTypes.Bottom, new Vector3(100, 100, 100));
+
+            sharpEngineSceneView.Scene.RootNode.Add(importedNode);
+            _importedSceneNode = importedNode;
+
+            ShowInfoMessage("Default Teapot-with-material.obj file loaded");
+        }
+        catch (Exception ex)
+        {
+            ShowInfoMessage($"Error importing {objUrl} file: " + ex.Message);
+        }
+
+        // Initialize javascript attachFileImportHandler so it can call back blazor (ObjFileImportedJS and MtlFileImportedJS)
+        _thisJSReference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("attachFileImportHandler", _thisJSReference);
+    }
+
+    [JSInvokable]
+    public void FileImportedJS(string fileName, string fileContent)
+    {
+        if (fileName.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
+        {
+            _lastObjFileName = fileName;
+            _lastObjFileContent = fileContent;
+
+            _lastMtlFileName = null;
+            _lastMtlFileContent = null;
+
+            ImportDroppedObjFile();
+
+            ShowInfoMessage($"3D models from {fileName} file imported. Select mtl file to also import materials.");
+        }
+        else if (fileName.EndsWith(".mtl", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_lastObjFileContent != null)
+            {
+                _lastMtlFileName = fileName;
+                _lastMtlFileContent = fileContent;
+
+                ImportDroppedObjFile();
+
+                ShowInfoMessage($"Materials from {fileName} file imported");
+            }
+            else
+            {
+                ShowInfoMessage("Cannot import mtl file because obj file was not imported. Select obj file first.");
+            }
+        }
+        else
+        {
+            ShowInfoMessage($"File '{fileName}' not supported. Only obj and mtl files can be dropped here.");
+        }
+    }
+
+    private void ImportDroppedObjFile()
+    {
+        var scene = sharpEngineSceneView.Scene;
+
+        if (_importedSceneNode != null)
+        {
+            scene.RootNode.Remove(_importedSceneNode);
+            _importedSceneNode.DisposeAllChildren(disposeMeshes: true, disposeMaterials: true, disposeTextures: true);
+            _importedSceneNode = null;
+        }
+
+        if (string.IsNullOrEmpty(_lastObjFileContent))
+            return;
+
+        var objImporter = new ObjImporter(sharpEngineSceneView.Scene);
+
+        var importedNode = objImporter.Import(_lastObjFileContent, _lastMtlFileContent);
+
+        Utilities.ModelUtils.PositionAndScaleSceneNode(importedNode, new Vector3(0, 0, 0), PositionTypes.Bottom, new Vector3(100, 100, 100));
+
+        sharpEngineSceneView.Scene.RootNode.Add(importedNode);
+        _importedSceneNode = importedNode;
+    }
+
+    private void ShowInfoMessage(string message)
+    {
+        _infoText = message;
+        StateHasChanged(); // Forces UI refresh (this is required because this event is called outside of Blazor rendering)
+    }
+
+    public void Dispose()
+    {
+        _thisJSReference?.Dispose();
+        sharpEngineSceneView.Dispose();
+    }
+}
