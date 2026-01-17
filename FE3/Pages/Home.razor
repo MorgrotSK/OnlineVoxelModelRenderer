@@ -9,6 +9,9 @@
 @using Ab4d.SharpEngine.Lights
 @using Ab4d.SharpEngine.Meshes
 @using Ab4d.SharpEngine.Utilities
+@using FE3.VoxelRenderer.Utils
+@using FE3.VoxelRenderer
+@using FE3.VoxelRenderer.Utils.UnmanagedStructures
 @using Colors = Ab4d.SharpEngine.Common.Colors
 @implements IDisposable
 
@@ -144,268 +147,23 @@
     {
         var scene = sharpEngineSceneView.Scene;
 
-        float hashModelSize = 100;
-        float hashModelBarThickness = 16;
-        float hashModelBarOffset = 20;
+        var model = new VoxelModel(depth: 6);
+        model.SetVoxel(0, 0, 0, 1);
 
-        var hashSymbolMesh = MeshFactory.CreateHashSymbolMesh(centerPosition: new Vector3(0, hashModelBarThickness * 0.5f, 0),
-        shapeYVector: new Vector3(0, 0, 1),
-        extrudeVector: new Vector3(0, hashModelBarThickness, 0),
-        size: hashModelSize,
-        barThickness: hashModelBarThickness,
-        barOffset: hashModelBarOffset,
-        name: "HashSymbolMesh");
+        var mesh = model.BuildMesh();
 
-        _hashMaterial = new StandardMaterial(diffuseColor: Color3.FromByteRgb(255, 197, 0));
-        //_hashMaterial = new StandardMaterial(diffuseColor: Colors.Silver);
+        var node = new MeshModelNode(
+            mesh,
+            new StandardMaterial(Colors.Orange),
+            "Voxel");
 
-        var hashSymbolNode = new MeshModelNode(hashSymbolMesh, _hashMaterial, "HashSymbolNode");
-        scene.RootNode.Add(hashSymbolNode);
+        scene.RootNode.Add(node);
 
-        var wireGridNode = new WireGridNode("Wire grid")
-        {
-            CenterPosition = new Vector3(0, -0.5f, -33),
-            Size = new Vector2(200, 200),
-
-            WidthDirection = new Vector3(1, 0, 0),  // this is also the default value
-            HeightDirection = new Vector3(0, 0, -1), // this is also the default value
-
-            WidthCellsCount = 30,
-            HeightCellsCount = 30,
-
-            MajorLineColor = Colors.Black,
-            MajorLineThickness = 1,
-
-            MinorLineColor = Colors.Gray,
-            MinorLineThickness = 1,
-
-            MajorLinesFrequency = 5,
-
-            IsClosed = true,
-        };
-        scene.RootNode.Add(wireGridNode);
-
-
-        // The first sphere is rendered by a SolidColorMaterial that renders the whole object with a single solid color (without any light shading)
-        var solidColorMaterial = new SolidColorMaterial(diffuseColor: Colors.Silver);
-
-        // Other spheres are rendered by a specular silver material (renders a white reflection)
-        var sphereMaterial = StandardMaterials.Silver.SetSpecular(64);
-
-        for (int i = 0; i < 6; i++)
-        {
-            Material usedMaterial = i == 0 ? solidColorMaterial : sphereMaterial;
-            var sphereModelNode1 = new SphereModelNode(new Vector3(-67 - 17 + i * 33, 16, -80), radius: 14, usedMaterial, name: $"Sphere_{i + 1}");
-            scene.RootNode.Add(sphereModelNode1);
-        }
-        
-
-        string objUrl = "models/Teapot-with-material.obj";
-
-        var objImporter = new ObjImporter(sharpEngineSceneView.Scene);
-
-        // To uses await call the ImportAsync method (see also ObjFileViewer.razor)
-        // var importedNode = await objImporter.ImportAsync(objUrl);
-        // sharpEngineSceneView.Scene.RootNode.Add(importedNode);
-
-        objImporter.Import(objUrl, importCompleteCallback: importedNode =>
-        {
-            if (importedNode != null)
-            {
-                sharpEngineSceneView.Scene.RootNode.Add(importedNode);
-            }
-        },
-        importFailedCallback: error => Console.WriteLine($"Obj load error: {error}"));
-        
-
-
-        if (sharpEngineSceneView.IsInitialized)
-        {
-            AddTexturePlanes();
-            _ = AddBitmapText(); // call async method from sync context
-            _ = AddVectorFont(); // call async method from sync context
-        }
-        else
-        {
-            sharpEngineSceneView.SceneViewInitialized += async (sender, args) =>
-            {
-                AddTexturePlanes();
-                await AddBitmapText();
-                await AddVectorFont();
-            };
-        }
-
-        ShowInfoMessage("Initial 3D scene shown");
+        _targetPositionCamera!.TargetPosition = new Vector3(0.5f, 0.5f, 0.5f);
+        _targetPositionCamera.Distance = 5;
     }
 
-    private void AddTexturePlanes()
-    {
-        // The easiest way to show texture is to create a new StandardMaterial
-        // and specify the textureFileName and initialDiffuseColor (shown until the texture is loaded).
-        // This also does not require that the GpuDevice is initialized.
-
-        var textureMaterial = new StandardMaterial(textureFileName: "ab4d-logo-256.png", 
-                                                   initialDiffuseColor: Colors.Gray,
-                                                   alphaClipThreshold: 0.5f); // alphaClipThreshold is optional and defines which pixels are discarded
-
-        var planeModelNode1 = new PlaneModelNode(centerPosition: new Vector3(-80, 30, -150), 
-            size: new Vector2(60, 60), 
-            normal: new Vector3(0, 0, 1), 
-            heightDirection: new Vector3(0, 1, 0), 
-            name: "Texture1Plane")
-        {
-            IsHitTestVisible = false,
-            Material = textureMaterial,
-            BackMaterial = textureMaterial,
-        };
-
-        sharpEngineSceneView.Scene.RootNode.Add(planeModelNode1);
-
-
-
-        // We can also use the TextureLoader to load the texture.
-        // TextureLoader requires that the GpuDevice is defined.
-
-        if (!sharpEngineSceneView.IsInitialized)
-            return;
-
-        var gpuDevice = sharpEngineSceneView.Scene.GpuDevice;
-        if (gpuDevice == null)
-            return;
-
-        // The CreateTextureAsync can take textureCreatedCallback and textureCreationFailedCallback callback actions:
-        TextureLoader.CreateTextureAsync(
-            "ab4d-logo-256.png", gpuDevice, 
-            textureCreatedCallback: gpuImage =>
-            {
-                // This time we use SolidColorMaterial instead of StandardMaterial
-                // Therefore, this texture will not be affected by lighting and will always show its full colors.
-                var textureMaterial2 = new SolidColorMaterial(gpuImage)
-                {
-                    AlphaClipThreshold = 0.5f, // Set AlphaClipThreshold to a value between 0 and 1 to discard pixels with alpha below 0.5 (by default AlphaClipThreshold is zero that disabled alpha clipping)
-                };
-
-                var planeModelNode2 = new PlaneModelNode(centerPosition: new Vector3(0, 30, -150), 
-                                                        size: new Vector2(60, 60), 
-                                                        normal: new Vector3(0, 0, 1), 
-                                                        heightDirection: new Vector3(0, 1, 0), 
-                                                        name: "Texture2Plane")
-                {
-                    IsHitTestVisible = false,
-                    Material = textureMaterial2,
-                    BackMaterial = textureMaterial2,
-                };
-
-                sharpEngineSceneView.Scene.RootNode.Add(planeModelNode2);
-            },
-            textureCreationFailedCallback: exception =>
-            {
-                ShowInfoMessage("ERROR: " + exception.Message);
-            });
-        
-        var gradientStops = new GradientStop[]
-        {
-            new GradientStop(Colors.Yellow, 0),
-            new GradientStop(Colors.Blue, 0.3f),
-            new GradientStop(Colors.Red, 0.8f),
-            new GradientStop(Colors.Red, 1),
-        };
-        var gradientTexture = Ab4d.SharpEngine.Utilities.TextureFactory.CreateGradientTexture(gpuDevice, gradientStops, isHorizontal: true);
-
-        var gradientMaterial = new StandardMaterial(gradientTexture);
-
-        var planeModelNode = new PlaneModelNode(centerPosition: new Vector3(80, 30, -150), 
-            size: new Vector2(60, 60), 
-            normal: new Vector3(0, 0, 1), 
-            heightDirection: new Vector3(0, 1, 0), 
-            name: "GradientPlane")
-        {
-            IsHitTestVisible = false,
-            Material = gradientMaterial,
-            BackMaterial = gradientMaterial,
-        };
-
-        sharpEngineSceneView.Scene.RootNode.Add(planeModelNode);
-    }
-
-    private async Task AddBitmapText()
-    {
-        var gpuDevice = sharpEngineSceneView.Scene.GpuDevice;
-
-        if (gpuDevice == null) // bitmap text can be created only after the GpuDevice was initialized
-            return;
-
-        // See Text/BitmapTextSample.cs file in the Ab4d.SharpEngine.Samples.Common project
-        // (project is part of Ab4d.SharpEngine samples - https://github.com/ab4d/Ab4d.SharpEngine.Samples)
-        // to see how to create a custom bitmap font.
-        // There are also Arial, Arial Black, Roboto Black and Arial Black with outline bitmap fonts in the Resources\BitmapFonts folder.
-
-        // When loading bitmap fonts, check that the webserver supports serving fnt files.
-        // For asp.net you may need to add the following to the web.config file:
-        // <system.webServer>
-        //   <staticContent>
-        //     <mimeMap fileExtension=".fnt" mimeType="text/plain" />
-        //   </staticContent>
-        // </system.webServer> 
-
-        try
-        {
-            var bitmapFont = await BitmapFont.CreateAsync("fonts/roboto_64.fnt", gpuDevice);
-            _bitmapTextCreator = await BitmapTextCreator.CreateAsync(sharpEngineSceneView.Scene, bitmapFont);
-
-            var bitmapTextNode = _bitmapTextCreator.CreateTextNode("Bitmap font", 
-                                                                   position: new Vector3(0, 0, 85), 
-                                                                   positionType: PositionTypes.Center, 
-                                                                   textDirection: new Vector3(1, 0, 0), 
-                                                                   upDirection: new Vector3(0, 0, -1), 
-                                                                   fontSize: 20, 
-                                                                   textColor: Colors.Black, 
-                                                                   isSolidColorMaterial: true);
-
-            sharpEngineSceneView.Scene.RootNode.Add(bitmapTextNode);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error loading BitmapFont: " + ex);
-        }
-    }
-
-    private async Task AddVectorFont()
-    {
-        // Load the font file
-        // This method can be called multiple times when the same fontName and fontFilePath is used.
-        // You can also check if font is loaded by calling:
-        // bool isLoaded = TrueTypeFontLoader.Instance.IsFontLoaded(fontName);
-
-        var fontFile = "fonts/Roboto-Regular.ttf";
-        var fontName = "RobotoRegular";
-
-        try
-        {
-            await TrueTypeFontLoader.Instance.LoadFontFileAsync(fontFile, fontName, sharpEngineSceneView.CanvasInterop);
-
-            // You can also use the async version of LoadFontFile method that read the font file in a background thread:
-            //await TrueTypeFontLoader.Instance.LoadFontFileAsync(fontFileName, fontName);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Error loading ttf font file: " + ex.Message);
-            return;
-        }
-
-        // After font is loaded, we can create an instance of VectorFontFactory by passing the fontName to constructor
-        var vectorFontFactory = new VectorFontFactory(fontName);
-
-        var textMesh = vectorFontFactory.CreateTextMesh("Vector FONT",
-                                                        new Vector3(0, 0, 110),
-                                                        TextPositionTypes.Center,
-                                                        textDirection: new Vector3(1, 0, 0),
-                                                        upDirection: new Vector3(0, 0, -1),
-                                                        fontSize: 20);
-
-        var meshModelNode = new MeshModelNode(textMesh!, StandardMaterials.Gold, "VectorTextNode") { BackMaterial = StandardMaterials.Black };
-        sharpEngineSceneView.Scene.RootNode.Add(meshModelNode);
-    }
+    
 
     private void UpdateRenderTime()
     {

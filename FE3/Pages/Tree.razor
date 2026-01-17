@@ -1,0 +1,72 @@
+﻿@page "/tree"
+@using System.Diagnostics
+@using FE3.VoxelRenderer.Utils.Octree
+
+<PageTitle>Octree Test</PageTitle>
+
+<h1>FlatOctree Test</h1>
+
+<button class="btn btn-primary" @onclick="RunTest">Run Octree Test</button>
+
+<p>@_status</p>
+
+<pre>@_log</pre>
+
+@code
+{
+    private string _status = "Idle";
+    private string _log = "";
+
+    private void RunTest()
+    {
+        var sw = Stopwatch.StartNew();
+        _log = "";
+
+        using var tree = new FlatOctree(depth: 6, cap: 128);
+
+        // Insert some voxels
+        tree.Insert(1, 2, 3, 5);
+        tree.Insert(10, 10, 10, 7);
+        tree.Insert(63, 63, 63, 9);
+
+        // Overwrite test
+        tree.Insert(1, 2, 3, 8);
+
+        // Query
+        byte a = tree.Get(1, 2, 3);
+        byte b = tree.Get(10, 10, 10);
+        byte c = tree.Get(63, 63, 63);
+        byte d = tree.Get(0, 0, 0); // empty
+        byte e = tree.Get(100, 0, 0); // out of bounds
+
+        _log += $"(1,2,3) = {a} (expected 8)\n";
+        _log += $"(10,10,10) = {b} (expected 7)\n";
+        _log += $"(63,63,63) = {c} (expected 9)\n";
+        _log += $"(0,0,0) = {d} (expected 0)\n";
+        _log += $"(100,0,0) = {e} (expected 0)\n";
+
+        // Stress test
+        int count = 0;
+        for (int x = 0; x < 16; x++)
+        for (int y = 0; y < 16; y++)
+        for (int z = 0; z < 16; z++)
+        {
+            tree.Insert(x, y, z, 1);
+            count++;
+        }
+
+        int hits = 0;
+        for (int x = 0; x < 16; x++)
+        for (int y = 0; y < 16; y++)
+        for (int z = 0; z < 16; z++)
+            if (tree.Get(x, y, z) == 1) hits++;
+
+        sw.Stop();
+
+        _log += $"\nInserted {count} voxels\n";
+        _log += $"Verified {hits} voxels\n";
+        _log += $"Time: {sw.Elapsed.TotalMilliseconds:F3} ms\n";
+
+        _status = hits == count ? "PASS ✅" : "FAIL ❌";
+    }
+}

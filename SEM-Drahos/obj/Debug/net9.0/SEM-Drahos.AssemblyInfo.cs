@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SEM-Drahos")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1c3f7d88de32a439997d5137a664e5d3aeae15b5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+00f7a0b21862abf14708bbba00a6cda34a29c6bd")]
 [assembly: System.Reflection.AssemblyProductAttribute("SEM-Drahos")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SEM-Drahos")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
