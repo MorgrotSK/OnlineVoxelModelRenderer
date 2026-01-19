@@ -127,18 +127,12 @@
 
     try
     {
-        if (_depth < 4 || _depth > 10)
-        {
-            _status = "Depth should be between 4 and 10 for a reasonable tree.";
-            return;
-        }
-
         using var model = new VoxelModel(depth: _depth);
 
         // ---- parameters ----
-        int trunkHeight = _depth * 2;
-        int trunkX = 0;
-        int trunkZ = 0;
+        int trunkHeight = 7;
+        int trunkX = 8;
+        int trunkZ = 8;
         int groundY = 0;
 
         byte wood = 1;

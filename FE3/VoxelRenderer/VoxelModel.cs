@@ -124,48 +124,72 @@ public sealed class VoxelModel(int depth, int initialCapacity = 128) : IDisposab
         _tree.Insert(x, y, z, value);
     }
     
-    private void EmitLeafQuads(int x, int y, int z, int size, byte data, UnmanagedList<Quad> quads)
+private void EmitLeafQuads(int x, int y, int z, int size, byte data, UnmanagedList<Quad> quads)
+{
+    for (int face = 0; face < 6; face++)
     {
-        for (int face = 0; face < 6; face++)
+        sbyte axis = (sbyte)((face >> 1) + 1);
+        if ((face & 1) != 0) axis = (sbyte)-axis;
+
+        if (IsFaceFullyOccludedBySameData(x, y, z, size, data, axis))
+            continue;
+
+        int fx = x, fy = y, fz = z;
+        int a = axis > 0 ? axis : -axis;
+
+        // face plane position (matches your BuildMesh expectations)
+        if (axis > 0)
         {
-            sbyte axis = (sbyte)((face >> 1) + 1);
-            if ((face & 1) != 0) axis = (sbyte)-axis;
-
-            int ai = (axis > 0 ? axis : -axis) - 1;
-
-            int nx = x, ny = y, nz = z;
-            if (axis > 0)
-            {
-                if (ai == 0) nx += size;
-                else if (ai == 1) ny += size;
-                else nz += size;
-            }
-            else
-            {
-                if (ai == 0) nx -= 1;
-                else if (ai == 1) ny -= 1;
-                else nz -= 1;
-            }
-
-            bool expose = _tree.Get(nx, ny, nz) != data;
-            if (!expose) continue;
-
-            int fx = x, fy = y, fz = z;
-            if (axis > 0)
-            {
-                if (ai == 0) fx += size;
-                else if (ai == 1) fy += size;
-                else fz += size;
-            }
-
-            quads.Add(new Quad
-            {
-                Position = new Int3(fx, fy, fz),
-                Size = size,
-                Axis = axis
-            });
+            if (a == 1) fx += size;
+            else if (a == 2) fy += size;
+            else fz += size;
         }
+
+        quads.Add(new Quad
+        {
+            Position = new Int3(fx, fy, fz),
+            Size = size,
+            Axis = axis
+        });
     }
+}
+
+private bool IsFaceFullyOccludedBySameData(int x, int y, int z, int size, byte data, sbyte axis)
+{
+    int a = axis > 0 ? axis : -axis;
+    
+    int nx = x, ny = y, nz = z;
+
+    if (a == 1) nx = axis > 0 ? x + size : x - 1;
+    if (a == 2) ny = axis > 0 ? y + size : y - 1;
+    if (a == 3) nz = axis > 0 ? z + size : z - 1;
+
+    if (a == 1)
+    {
+        for (int yy = y; yy < y + size; yy++)
+            for (int zz = z; zz < z + size; zz++)
+                if (_tree.Get(nx, yy, zz) != data)
+                    return false;
+    }
+    else if (a == 2)
+    {
+        for (int xx = x; xx < x + size; xx++)
+            for (int zz = z; zz < z + size; zz++)
+                if (_tree.Get(xx, ny, zz) != data)
+                    return false;
+    }
+    else
+    {
+        for (int xx = x; xx < x + size; xx++)
+            for (int yy = y; yy < y + size; yy++)
+                if (_tree.Get(xx, yy, nz) != data)
+                    return false;
+    }
+
+    return true;
+}
+
+    
     
     public byte[] Serialize()
     {
