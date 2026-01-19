@@ -1,0 +1,32 @@
+﻿@page "/login"
+
+<MudPaper Class="pa-6" MaxWidth="400px">
+    <MudText Typo="Typo.h5">Login</MudText>
+
+    <MudTextField @bind-Value="userName" Label="Username" />
+    <MudTextField @bind-Value="password" Label="Password" InputType="InputType.Password" />
+
+    <MudButton OnClick="Submit" Color="Color.Primary">Login</MudButton>
+
+    @if (error != null)
+    {
+        <MudAlert Severity="Severity.Error">@error</MudAlert>
+    }
+</MudPaper>
+
+@code {
+    string userName = "";
+    string password = "";
+    string? error;
+
+    async Task Submit()
+    {
+        if (!await Auth.Login(userName, password))
+            error = "Invalid credentials";
+        else
+            Nav.NavigateTo("/");
+    }
+
+    [Inject] AuthService Auth { get; set; } = null!;
+    [Inject] NavigationManager Nav { get; set; } = null!;
+}

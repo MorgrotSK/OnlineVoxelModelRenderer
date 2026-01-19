@@ -1,0 +1,285 @@
+﻿@using System.Numerics
+@using Ab4d.SharpEngine.Cameras
+@using Ab4d.SharpEngine.Common
+@using Ab4d.SharpEngine.Lights
+@using Ab4d.SharpEngine.Materials
+@using Ab4d.SharpEngine.SceneNodes
+@using Colors = Ab4d.SharpEngine.Common.Colors
+@implements IDisposable
+@inject IJSRuntime JS
+
+<MudPaper Elevation="0" Outlined="true" Class="@Class" Style="@Style">
+    <MudStack Spacing="2" Class="pa-4">
+
+        @if (!string.IsNullOrWhiteSpace(Title))
+        {
+            <MudText Typo="Typo.h6">@Title</MudText>
+        }
+
+        <div style="border-radius:14px; overflow:hidden; border:1px solid rgba(0,0,0,0.08)">
+            <SharpEngineSceneView @ref="_view" CanvasWidth="@CanvasWidth" CanvasHeight="@CanvasHeight" style="@($"width:100%; height:{CanvasHeight}px;")" />
+        </div>
+
+        @if (ShowControls)
+        {
+            <MudStack Spacing="1">
+                <MudStack Row Spacing="1" AlignItems="AlignItems.Center">
+                    <MudButton Variant="Variant.Outlined" OnClick="ResetView" Disabled="@(!_ready)">Reset</MudButton>
+
+                    <MudButton OnClick="StartSpin" Disabled="@(!_ready)">Spin</MudButton>
+                    <MudButton OnClick="StopSpin" Disabled="@(!_ready)">Stop</MudButton>
+                </MudStack>
+
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.caption">Distance</MudText>
+                        <MudSlider T="float"
+                                   Min="0.8f" Max="100f" Step="0.1f"
+                                   Value="@_distance"
+                                   ValueChanged="OnDistanceChanged"
+                                   Disabled="@(!_ready)" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.caption">Heading</MudText>
+                        <MudSlider T="float"
+                                   Min="-180f" Max="180f" Step="1f"
+                                   Value="@_heading"
+                                   ValueChanged="OnHeadingChanged"
+                                   Disabled="@(!_ready)" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.caption">Attitude</MudText>
+                        <MudSlider T="float"
+                                   Min="-89f" Max="89f" Step="1f"
+                                   Value="@_attitude"
+                                   ValueChanged="OnAttitudeChanged"
+                                   Disabled="@(!_ready)" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.caption">Spin speed</MudText>
+                        <MudSlider T="float"
+                                   Min="0f" Max="180f" Step="1f"
+                                   Value="@_spinSpeed"
+                                   ValueChanged="OnSpinSpeedChanged"
+                                   Disabled="@(!_ready)" />
+                    </MudItem>
+                </MudGrid>
+            </MudStack>
+        }
+
+        @if (_error != null)
+        {
+            <MudAlert Severity="Severity.Error">@_error</MudAlert>
+        }
+
+    </MudStack>
+</MudPaper>
+
+@code
+{
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public bool ShowControls { get; set; } = true;
+
+    [Parameter] public int CanvasWidth { get; set; } = 900;
+    [Parameter] public int CanvasHeight { get; set; } = 520;
+
+    [Parameter] public string Class { get; set; } = "";
+    [Parameter] public string Style { get; set; } = "";
+
+    [Parameter] public VoxelModel? Model { get; set; }
+
+    [Parameter] public float SpinSpeed { get; set; } = 35;
+
+    [Parameter] public EventCallback OnModelLoaded { get; set; }
+    [Parameter] public EventCallback<string> OnThumbnailDataUrl { get; set; }
+    [Parameter] public EventCallback<byte[]> OnThumbnailPngBytes { get; set; }
+
+    SharpEngineSceneView _view = null!;
+    TargetPositionCamera? _camera;
+    MeshModelNode? _node;
+    StandardMaterial? _mat;
+    IJSObjectReference? _jsModule;
+
+    bool _ready;
+    bool _jsReady;
+    string? _error;
+
+    // ---- Control state (kept in sync with camera) ----
+    float _heading;
+    float _attitude;
+    float _distance;
+    float _spinSpeed;
+
+    // Defaults for Reset
+    const float _defaultHeading = 35;
+    const float _defaultAttitude = -25;
+    const float _defaultDistance = 5;
+    static readonly Vector3 _defaultTarget = new Vector3(0.5f);
+
+    protected override void OnAfterRender(bool first)
+    {
+        if (!first) return;
+
+        InitScene();
+
+        // Initialize UI state from defaults
+        _heading = _defaultHeading;
+        _attitude = _defaultAttitude;
+        _distance = _defaultDistance;
+        _spinSpeed = SpinSpeed;
+
+        _ready = true;
+        _ = LoadAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_ready)
+            _ = LoadAsync();
+
+        // Keep slider default aligned with parameter unless user already changed it.
+        if (!_ready)
+            _spinSpeed = SpinSpeed;
+    }
+
+    void InitScene()
+    {
+        var scene = _view.Scene;
+        var view  = _view.SceneView;
+
+        view.BackgroundColor = Colors.LightSkyBlue;
+        scene.SetAmbientLight(0.25f);
+        scene.Lights.Add(new DirectionalLight(new Vector3(-1, -0.6f, -0.2f)));
+
+        _camera = new TargetPositionCamera
+        {
+            Heading = _defaultHeading,
+            Attitude = _defaultAttitude,
+            Distance = _defaultDistance,
+            TargetPosition = _defaultTarget,
+            ShowCameraLight = ShowCameraLightType.Never
+        };
+
+        view.Camera = _camera;
+    }
+
+    async Task LoadAsync()
+    {
+        ClearNode();
+        _error = null;
+
+        try
+        {
+            if (Model == null)
+                return;
+
+            BuildMesh(Model);
+
+            if (OnModelLoaded.HasDelegate)
+                await OnModelLoaded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    void BuildMesh(VoxelModel model)
+    {
+        var mesh = model.BuildMesh();
+        _mat = new StandardMaterial(Color3.FromHsl(25));
+        _node = new MeshModelNode(mesh, _mat);
+        _view.Scene.RootNode.Add(_node);
+
+        if (_camera != null)
+        {
+            _camera.Distance = _defaultDistance;
+
+            // keep UI in sync
+            _distance = _camera.Distance;
+        }
+    }
+
+    void ClearNode()
+    {
+        if (_node == null) return;
+        _view.Scene.RootNode.Remove(_node);
+        _node.Dispose();
+        _node = null;
+    }
+
+    // ---- Existing controls (now use _spinSpeed) ----
+    public void StartSpin() => _camera?.StartRotation(_spinSpeed);
+    public void StopSpin()  => _camera?.StopRotation();
+    
+    // ---- New basic controls ----
+    void ResetView()
+    {
+        if (_camera == null) return;
+
+        StopSpin();
+
+        _heading = _defaultHeading;
+        _attitude = _defaultAttitude;
+        _distance = _defaultDistance;
+
+        _camera.Heading = _heading;
+        _camera.Attitude = _attitude;
+        _camera.Distance = _distance;
+        _camera.TargetPosition = _defaultTarget;
+
+        StateHasChanged();
+    }
+
+    void OnDistanceChanged(float v)
+    {
+        _distance = v;
+        if (_camera != null) _camera.Distance = _distance;
+    }
+
+    void OnHeadingChanged(float v)
+    {
+        _heading = v;
+        if (_camera != null) _camera.Heading = _heading;
+    }
+
+    void OnAttitudeChanged(float v)
+    {
+        _attitude = v;
+        if (_camera != null) _camera.Attitude = _attitude;
+    }
+
+    void OnSpinSpeedChanged(float v)
+    {
+        _spinSpeed = v;
+    }
+
+    public async Task CaptureAsync()
+    {
+        if (_jsModule == null)
+            _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/CanvasTools.js");
+        var url = await _jsModule.InvokeAsync<string?>("captureCanvasToPng", "sharpEngineCanvas_2");
+        
+        if (OnThumbnailDataUrl.HasDelegate)
+            await OnThumbnailDataUrl.InvokeAsync(url);
+
+        if (OnThumbnailPngBytes.HasDelegate)
+        {
+            var base64 = url[(url.IndexOf(',') + 1)..];
+            await OnThumbnailPngBytes.InvokeAsync(Convert.FromBase64String(base64));
+        }
+    }
+    
+
+    public void Dispose()
+    {
+        ClearNode();
+        _view?.Dispose();
+        _jsModule?.DisposeAsync();
+    }
+}

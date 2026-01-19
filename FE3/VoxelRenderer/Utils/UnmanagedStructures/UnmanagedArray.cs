@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 public sealed unsafe class UnmanagedArray<T> : IDisposable where T : unmanaged
 {
     private T* _buf; private int _cap, _count;
+    public T* RawPtr => _buf;
     public int Count => _count;
 
     public UnmanagedArray(int cap = 1)

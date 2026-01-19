@@ -1,6 +1,8 @@
 ﻿@using Ab4d.SharpEngine
 @using Ab4d.SharpEngine.WebGL
 @implements IDisposable
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <!-- IMPORTANT: width/height must be set to prevent resize loop -->
 <canvas id="@_canvasId"
@@ -11,6 +13,7 @@
 @code {
 
     private string _canvasId = "sharpEngineCanvas";
+    private IJSObjectReference? _jsModule;
 
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
@@ -35,7 +38,6 @@
 
     protected override void OnInitialized()
     {
-        // SAFE: no JS, no WebGL, no browser dependency
         _canvasId = CanvasInterop.CanvasId;
     }
 
@@ -44,28 +46,28 @@
         if (!firstRender)
             return;
 
-        // HARD STOP for SSR
         if (!OperatingSystem.IsBrowser())
             return;
 
-        // Initialize JS interop ONCE, in browser only
-        await CanvasInterop.InitializeInterop();
+        _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/CanvasTools.js");
 
-        // Canvas now exists → connect WebGL
-        CanvasInterop.InitWebGL();
+        await CanvasInterop.InitializeInterop();
+        
+        // Zachovanei frame buffera pre thumbnail!!!!
+        await _jsModule.InvokeAsync<bool>("ensurePreserveDrawingBufferForCanvas", _canvasId);
+
+        CanvasInterop.InitWebGL(useMultisampleAntiAliasing: false);
 
         if (!CanvasInterop.IsWebGLInitialized)
             return;
 
         GpuDevice = WebGLDevice.Create(CanvasInterop);
-
         if (!GpuDevice.IsInitialized)
             return;
 
         SceneView.Initialize(GpuDevice);
         SceneViewInitialized?.Invoke(this, EventArgs.Empty);
     }
-
     public void Dispose()
     {
         if (_sceneView != null && !_sceneView.IsDisposed)
@@ -77,11 +79,27 @@
         if (GpuDevice != null)
         {
             GpuDevice.Dispose();
-            
             GpuDevice = null;
         }
 
         if (CanvasInterop.IsWebGLInitialized)
             CanvasInterop.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (OperatingSystem.IsBrowser() && _jsModule is not null)
+        {
+            try
+            {
+                await _jsModule.DisposeAsync();
+            }
+            catch
+            {
+                // ignore teardown failures
+            }
+        }
+
+        Dispose();
     }
 }

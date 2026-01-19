@@ -1,0 +1,303 @@
+﻿@page "/generate"
+@using System.Text
+@using Microsoft.JSInterop
+@using MudBlazor
+@using FE3.VoxelRenderer
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-6">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4">Generate test .fotr voxel file</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Generates a valid FOTR voxel model in-memory and downloads it. Intended for upload pipeline testing.
+        </MudText>
+
+        <MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 18px;">
+            <MudStack Spacing="2">
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <MudTextField @bind-Value="_depth"
+                                  Label="Depth"
+                                  Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Disabled="@_busy"
+                                  Style="max-width: 140px;"
+                                  InputType="InputType.Number" />
+                    <MudTextField @bind-Value="_x"
+                                  Label="X"
+                                  Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Disabled="@_busy"
+                                  Style="max-width: 120px;"
+                                  InputType="InputType.Number" />
+                    <MudTextField @bind-Value="_y"
+                                  Label="Y"
+                                  Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Disabled="@_busy"
+                                  Style="max-width: 120px;"
+                                  InputType="InputType.Number" />
+                    <MudTextField @bind-Value="_z"
+                                  Label="Z"
+                                  Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Disabled="@_busy"
+                                  Style="max-width: 120px;"
+                                  InputType="InputType.Number" />
+                    <MudTextField @bind-Value="_value"
+                                  Label="Value"
+                                  Variant="Variant.Outlined"
+                                  Immediate="true"
+                                  Disabled="@_busy"
+                                  Style="max-width: 120px;"
+                                  InputType="InputType.Number" />
+                </MudStack>
+
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="@_busy"
+                               OnClick="GenerateAndDownloadAsync">
+                        Generate & download
+                    </MudButton>
+
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Default"
+                               Disabled="@_busy"
+                               OnClick="GenerateDefaultSingleVoxelAsync">
+                        Default single voxel
+                    </MudButton>
+                    
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Default"
+                               Disabled="@_busy"
+                               OnClick="GenerateMinecraftTreeAsync">
+                        Tree
+                    </MudButton>
+                </MudStack>
+
+                @if (!string.IsNullOrWhiteSpace(_status))
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">@_status</MudAlert>
+                }
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Output name: <b>@_fileName</b>
+                </MudText>
+            </MudStack>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
+
+@code
+{
+    private bool _busy;
+    private string _status = "";
+
+    private int _depth = 6;
+    private int _x = 0;
+    private int _y = 0;
+    private int _z = 0;
+    private int _value = 1;
+
+    private string _fileName => $"test_{_depth}_x{_x}_y{_y}_z{_z}_v{_value}.fotr";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await EnsureDownloadJsAsync();
+        }
+    }
+
+    private async Task GenerateDefaultSingleVoxelAsync()
+    {
+        _depth = 6;
+        _x = 0;
+        _y = 0;
+        _z = 0;
+        _value = 1;
+        _status = "Default parameters set (single voxel at 0,0,0 value=1).";
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    private async Task GenerateMinecraftTreeAsync()
+{
+    _busy = true;
+    _status = "";
+
+    try
+    {
+        if (_depth < 4 || _depth > 10)
+        {
+            _status = "Depth should be between 4 and 10 for a reasonable tree.";
+            return;
+        }
+
+        using var model = new VoxelModel(depth: _depth);
+
+        // ---- parameters ----
+        int trunkHeight = _depth * 2;
+        int trunkX = 0;
+        int trunkZ = 0;
+        int groundY = 0;
+
+        byte wood = 1;
+        byte leaves = 2;
+
+        // ---- trunk ----
+        for (int y = groundY; y < groundY + trunkHeight; y++)
+        {
+            model.SetVoxel(trunkX, y, trunkZ, wood);
+        }
+
+        // ---- canopy ----
+        int canopyCenterY = groundY + trunkHeight;
+        int canopyRadius = trunkHeight / 2;
+
+        for (int x = -canopyRadius; x <= canopyRadius; x++)
+        {
+            for (int y = -canopyRadius; y <= canopyRadius; y++)
+            {
+                for (int z = -canopyRadius; z <= canopyRadius; z++)
+                {
+                    // soft sphere (Minecraft-like blob)
+                    int distSq = x * x + y * y + z * z;
+                    if (distSq > canopyRadius * canopyRadius)
+                        continue;
+
+                    // avoid overwriting trunk core
+                    if (x == 0 && z == 0 && y <= 0)
+                        continue;
+
+                    model.SetVoxel(
+                        trunkX + x,
+                        canopyCenterY + y,
+                        trunkZ + z,
+                        leaves
+                    );
+                }
+            }
+        }
+
+        var bytes = model.Serialize();
+
+        if (bytes.Length < 4 ||
+            BitConverter.ToUInt32(bytes, 0) != 0x52544F46)
+        {
+            _status = "Generated bytes do not look like a FOTR file (magic mismatch).";
+            return;
+        }
+
+        var base64 = Convert.ToBase64String(bytes);
+
+        await JS.InvokeVoidAsync(
+            "__downloadBase64File",
+            $"tree_depth{_depth}.fotr",
+            "application/octet-stream",
+            base64
+        );
+
+        _status = $"Minecraft-style tree generated ({FormatBytes(bytes.Length)}).";
+    }
+    catch (Exception ex)
+    {
+        _status = $"Tree generation failed: {ex.Message}";
+    }
+    finally
+    {
+        _busy = false;
+        await InvokeAsync(StateHasChanged);
+    }
+}
+
+
+    private async Task GenerateAndDownloadAsync()
+    {
+        _busy = true;
+        _status = "";
+        try
+        {
+            if (_depth <= 0 || _depth > 32)
+            {
+                _status = "Depth out of range. Use 1..32.";
+                return;
+            }
+
+            if (_value < 0 || _value > 255)
+            {
+                _status = "Value out of range. Use 0..255.";
+                return;
+            }
+
+            // Create a valid model with your existing writer (FlatOctree.Serialize under the hood)
+            using var model = new VoxelModel(depth: _depth);
+            model.SetVoxel(_x, _y, _z, (byte)_value);
+
+            var bytes = model.Serialize();
+
+            // Basic sanity for FOTR magic (0x52544F46)
+            if (bytes.Length < 4 ||
+                BitConverter.ToUInt32(bytes, 0) != 0x52544F46)
+            {
+                _status = "Generated bytes do not look like a FOTR file (magic mismatch).";
+                return;
+            }
+
+            var base64 = Convert.ToBase64String(bytes);
+
+            await JS.InvokeVoidAsync("__downloadBase64File",
+                _fileName,
+                "application/octet-stream",
+                base64);
+
+            _status = $"Generated {FormatBytes(bytes.Length)} and triggered download.";
+        }
+        catch (Exception ex)
+        {
+            _status = $"Generation failed: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task EnsureDownloadJsAsync()
+    {
+        var js = @"
+window.__downloadBase64File = function (fileName, contentType, base64Data) {
+    try {
+        const byteChars = atob(base64Data);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) {
+            byteNumbers[i] = byteChars.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: contentType || 'application/octet-stream' });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName || 'file.bin';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('download failed', e);
+        throw e;
+    }
+};
+";
+        await JS.InvokeVoidAsync("eval", js);
+    }
+
+    private static string FormatBytes(int bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        if (bytes < 1024 * 1024 * 1024) return $"{bytes / (1024.0 * 1024.0):F1} MB";
+        return $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB";
+    }
+}

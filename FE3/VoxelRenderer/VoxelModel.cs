@@ -9,12 +9,11 @@ namespace FE3.VoxelRenderer;
 
 public sealed class VoxelModel(int depth, int initialCapacity = 128) : IDisposable
 {
-    private readonly FlatOctree _tree = new(depth, initialCapacity);
-    public readonly int Size = 1 << depth; // usually 1 << depth
+    private FlatOctree _tree = new(depth, initialCapacity);
     
     public void Dispose() => _tree.Dispose();
-    
-    public UnmanagedList<Quad> ExtractAllQuads()
+
+    private UnmanagedList<Quad> ExtractAllQuads()
     {
         var quads = new UnmanagedList<Quad>(256);
 
@@ -26,15 +25,9 @@ public sealed class VoxelModel(int depth, int initialCapacity = 128) : IDisposab
         return quads;
     }
     
-    public TriangleMesh<PositionNormalTextureVertex> BuildMesh()
+     public TriangleMesh<PositionNormalTextureVertex> BuildMesh()
     {
         using var quads = ExtractAllQuads();
-        return BuildMeshFromQuads(quads);
-    }
-
-    
-     private TriangleMesh<PositionNormalTextureVertex> BuildMeshFromQuads(UnmanagedList<Quad> quads)
-    {
         int quadCount = quads.Count;
 
         var vertices = new List<PositionNormalTextureVertex>(quadCount * 4);
@@ -172,6 +165,21 @@ public sealed class VoxelModel(int depth, int initialCapacity = 128) : IDisposab
                 Axis = axis
             });
         }
+    }
+    
+    public byte[] Serialize()
+    {
+        return _tree.Serialize();
+    }
+    
+    public static VoxelModel Deserialize(ReadOnlySpan<byte> data)
+    {
+        var tree = FlatOctree.Deserialize(data);
+        var model = new VoxelModel(tree.Depth, tree.NodeCount);
+        model._tree.Dispose();
+        model._tree = tree;
+
+        return model;
     }
 
 }

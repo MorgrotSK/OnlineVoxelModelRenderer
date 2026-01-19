@@ -21,10 +21,7 @@
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="MongoDB.EntityFrameworkCore" Version="9.0.3" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="controllers\" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
 </Project>

@@ -9,7 +9,10 @@ public sealed class FlatOctree : IDisposable
 {
     private readonly int _depth;
     private readonly UnmanagedArray<OctreeNode> _nodes;
-    private readonly int _root;
+    private int _root;
+    
+    public int Depth => _depth;
+    public int NodeCount => _nodes.Count;
 
     public FlatOctree(int depth, int cap = 128)
     {
@@ -127,6 +130,69 @@ public sealed class FlatOctree : IDisposable
         if (node.Data != 0)
             visitor(x, y, z, size, node.Data);
     }
+    
+    public byte[] Serialize()
+    {
+        unsafe
+        {
+            const uint magic = 0x52544F46; // "FOTR"
+
+            int nodeCount = _nodes.Count;
+            int nodeSize = sizeof(OctreeNode);
+
+            byte[] buffer = new byte[
+                4 + 1 + 1 + 4 + 4 + nodeCount * nodeSize
+            ];
+
+            fixed (byte* dst = buffer)
+            {
+                *(uint*)(dst + 0)  = magic;
+                *(byte*)(dst + 4)  = (byte)_depth;
+                *(int*)(dst + 5)   = nodeCount;
+                *(int*)(dst + 9)   = _root;
+
+                Buffer.MemoryCopy(_nodes.RawPtr, dst + 13, nodeCount * nodeSize, nodeCount * nodeSize);
+            }
+
+            return buffer;
+        }
+        
+    }
+    
+    public static FlatOctree Deserialize(ReadOnlySpan<byte> data)
+    {
+        const uint magic = 0x52544F46; // "FOTR"
+
+        unsafe
+        {
+            fixed (byte* src = data)
+            {
+                // 1. Validate magic
+                if (*(uint*)(src + 0) != magic)
+                    throw new InvalidDataException("Invalid FlatOctree data");
+
+                // 2. Read header
+                int depth     = *(byte*)(src + 4);
+                int nodeCount = *(int*)(src + 5);
+                int root      = *(int*)(src + 9);
+
+                // 3. Create tree
+                var tree = new FlatOctree(depth, nodeCount);
+                tree._nodes.Allocate(nodeCount - 1);
+                tree._root = root;
+
+                // 4. Copy nodes
+                Buffer.MemoryCopy(
+                    src + 13,
+                    tree._nodes.RawPtr,
+                    nodeCount * sizeof(OctreeNode),
+                    nodeCount * sizeof(OctreeNode));
+
+                return tree;
+            }
+        }
+    }
+
     
 }
 

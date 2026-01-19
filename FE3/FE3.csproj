@@ -47,7 +47,11 @@
 
     <ItemGroup>
         <PackageReference Include="Ab4d.SharpEngine.Web" Version="0.8.9432-beta2" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.12" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.12" />
         <PackageReference Include="MudBlazor" Version="9.0.0-preview.2" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     </ItemGroup>
 
     <ItemGroup>

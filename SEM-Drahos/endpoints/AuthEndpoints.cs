@@ -90,7 +90,7 @@ public static class AuthEndpoints
         return Results.Ok(new
         {
             Id = user.FindFirstValue(JwtRegisteredClaimNames.Sub),
-            Email = user.FindFirstValue(JwtRegisteredClaimNames.Email)
+            UserName = user.FindFirstValue(JwtRegisteredClaimNames.Name)
         });
     }
 }

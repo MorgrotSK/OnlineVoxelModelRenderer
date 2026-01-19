@@ -1,353 +1,365 @@
 ﻿@page "/"
-@using System.Diagnostics
+@using System.Linq
 @using System.Numerics
+@using Microsoft.JSInterop
+@using MudBlazor
 @using Ab4d.SharpEngine.Cameras
 @using Ab4d.SharpEngine.Common
 @using Ab4d.SharpEngine.Materials
 @using Ab4d.SharpEngine.SceneNodes
-@using Ab4d.SharpEngine.Browser
 @using Ab4d.SharpEngine.Lights
 @using Ab4d.SharpEngine.Meshes
-@using Ab4d.SharpEngine.Utilities
-@using FE3.VoxelRenderer.Utils
 @using FE3.VoxelRenderer
-@using FE3.VoxelRenderer.Utils.UnmanagedStructures
 @using Colors = Ab4d.SharpEngine.Common.Colors
 @implements IDisposable
+@inject IJSRuntime JS
 
-<PageTitle>Ab4d.SharpEngine.Web - Quick start</PageTitle>
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-6">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4">Voxel Gallery</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Grid uses real screenshots captured from the single live WebGL preview.
+        </MudText>
 
-<h1>Ab4d.SharpEngine.Web</h1>
+        <MudGrid Spacing="3">
+            <!-- LEFT: grid thumbnails (images captured from live preview) -->
+            <MudItem xs="12" md="7" lg="8">
+                <MudGrid Spacing="3">
+                    @foreach (var item in _items)
+                    {
+                        <MudItem xs="12" sm="6" md="6" lg="4" @key="item.Id">
+                            <MudPaper Elevation="0"
+                                      Outlined="true"
+                                      Class="@GetTileClass(item)"
+                                      OnClick="@(() => Select(item.Id))">
 
-<p>This is a example of how to use the Ab4d.SharpEngine.Web 3D rendering engine in a browser.<br/>
-    This sample demonstrates only a few features of the engine.</p>
-<p>
-    To see the full demonstration of the engine, please check the <a href="https://github.com/ab4d/Ab4d.SharpEngine.Samples" target="_blank">samples for the desktop and mobile devices</a> and
-    <a href="https://www.ab4d.com/help/SharpEngine/html/R_Project_Ab4d_SharpEngine.htm">online help</a>.<br />
-    To see which features are already available in this beta version, check the <a href="https://github.com/ab4d/Ab4d.SharpEngine.Samples.Web#implementation-details-and-roadmap" target="_blank">Roadmap and Implementation details</a>.
-</p>
+                                <div class="tile">
+                                    <div class="tile-preview">
+                                        @if (_thumbnails.TryGetValue(item.Id, out var img))
+                                        {
+                                            <img src="@img" class="thumb-img" />
+                                        }
+                                        else
+                                        {
+                                            <div class="thumb-loading">
+                                                <MudProgressCircular Indeterminate Size="Size.Small" />
+                                            </div>
+                                        }
+                                    </div>
 
-<span style="font-weight: bold">Options:</span><br/>
+                                    <div class="tile-meta">
+                                        <MudText Typo="Typo.subtitle1" Class="tile-title">@item.Title</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">by @item.Author</MudText>
 
-<label><input type="checkbox" checked="checked" @onchange="OnCameraRotateSettingsChanged" /> Rotate the camera with left mouse button or touch</label><br />
-<label><input type="checkbox" checked="checked" @onchange="OnCameraMoveSettingsChanged" /> Move the camera with control + left mouse button or two fingers</label><br />
-<label><input type="checkbox" checked="checked" @onchange="OnCameraZoomSettingsChanged" /> Zoom with mouse wheel or touch pinch</label><br />
-<label><input type="checkbox" checked="checked" @onchange="OnUseCameraLightCheckBoxChanged" /> Use camera light (shines from the position of the camera; when unchecked then a fixed directional light is used)</label><br />
-<label><input type="checkbox" @bind="_showRenderTimes" /> Show render times in DevTools (F12) Console</label><br />
-<br />
+                                        @if (_selectedId == item.Id)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Class="mt-2">
+                                                Selected
+                                            </MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined" Class="mt-2">
+                                                Click to select
+                                            </MudChip>
+                                        }
+                                    </div>
+                                </div>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudItem>
 
-<button class="btn-primary" @onclick="OnStartStopCameraRotationButtonClicked">@_cameraRotationButtonText</button>
-<button class="btn-primary" style="margin-top: 3pt" @onclick="ChangeMaterial">Change material</button>
-<button class="btn-primary" style="margin-top: 3pt" @onclick="AddManyObjects">Add many objects</button>
-<button class="btn-primary" style="margin-top: 3pt" @onclick="RemoveAddedObjects">Remove added objects</button>
-@* <button class="btn-primary" style="margin-top: 3pt" @onclick="CaptureNextFrame">Capture frame in Spector</button> *@
+            <!-- RIGHT: single live WebGL preview -->
+            <MudItem xs="12" md="5" lg="4">
+                <MudPaper Elevation="0" Outlined="true" Class="live-card">
+                    <MudStack Spacing="2" Class="pa-4">
+                        <MudText Typo="Typo.h6">Live preview</MudText>
 
-<br />
+                        <div class="live-preview-wrap">
+                            <SharpEngineSceneView @ref="_liveView"
+                                                  CanvasId="live_preview_canvas"
+                                                  CanvasWidth="420"
+                                                  CanvasHeight="320"
+                                                  style="width: 100%; height: 320px;">
+                            </SharpEngineSceneView>
+                        </div>
 
-<SharpEngineSceneView @ref="sharpEngineSceneView" style="width: 70%; min-width: 400px; max-width: 1000px; height: 400px; margin-top: 10pt; border: solid black 1px"></SharpEngineSceneView>
+                        <MudDivider />
 
-<br />
-<p>@_infoText</p>
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.subtitle1" Class="tile-title">@SelectedItem?.Title</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">by @SelectedItem?.Author</MudText>
+                        </MudStack>
+
+                        <MudStack Row="true" Spacing="1">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@StartSpin">Spin</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@StopSpin">Stop</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@RandomizeColor">Color</MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@CaptureSelectedThumbAsync">Capture</MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudStack>
+</MudContainer>
+
+<style>
+    .tile {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        padding: 14px;
+        border-radius: 16px;
+        cursor: pointer;
+        user-select: none;
+        transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+    .tile:hover { transform: translateY(-1px); }
+
+    .tile-preview {
+        flex: 0 0 auto;
+        width: 148px;
+        height: 148px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.65);
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .thumb-loading {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.35));
+    }
+
+    .thumb-img {
+        width: 140px;
+        height: 140px;
+        border-radius: 12px;
+        object-fit: contain;
+        display: block;
+    }
+
+    .tile-meta { min-width: 0; flex: 1 1 auto; }
+
+    .tile-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+    .tile-base {
+        border-radius: 18px;
+        background: rgba(255,255,255,0.55);
+        backdrop-filter: blur(6px);
+    }
+
+    .tile-selected {
+        border-color: rgba(25, 118, 210, 0.65) !important;
+        box-shadow: 0 8px 30px rgba(25, 118, 210, 0.18);
+    }
+
+    .live-card {
+        border-radius: 18px;
+        background: rgba(255,255,255,0.55);
+        backdrop-filter: blur(6px);
+    }
+
+    .live-preview-wrap {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+</style>
 
 @code {
-    // BOUND FIELDS:
-    private string _infoText = "Initializing...";
-    private string _cameraRotationButtonText = "Start camera rotation";
-    private bool _useCameraLight = true;
-    private bool _showRenderTimes = true;
+    private sealed class GalleryItem
+    {
+        public required string Id { get; init; }
+        public required string Title { get; init; }
+        public required string Author { get; init; }
+    }
 
-    private SharpEngineSceneView sharpEngineSceneView = null!;
+    private readonly List<GalleryItem> _items = new()
+    {
+        new() { Id = "a", Title = "Single Cube",        Author = "Mock Author 1" },
+        new() { Id = "b", Title = "Voxel Test Asset",   Author = "Mock Author 2" },
+        new() { Id = "c", Title = "Prototype Model",    Author = "Mock Author 3" },
+        new() { Id = "d", Title = "Blockout Preview",   Author = "Mock Author 4" },
+        new() { Id = "e", Title = "Orange Sample",      Author = "Mock Author 5" },
+        new() { Id = "f", Title = "Tiny Voxel Cube",    Author = "Mock Author 6" },
+    };
 
-    private TargetPositionCamera? _targetPositionCamera;
-    private PointerCameraController? _pointerCameraController;
-    private DirectionalLight? _directionalLight;
+    private string _selectedId = "a";
+    private GalleryItem? SelectedItem => _items.FirstOrDefault(x => x.Id == _selectedId);
 
-    private StandardMaterialBase? _hashMaterial;
-    private ModelNode? _lastSelectedModelNode;
-    private Material? _lastSelectedModelNodeMaterial;
+    private readonly Dictionary<string, string> _thumbnails = new();
+    private bool _captureJsInjected;
 
-    private List<GroupNode> _addedObjects = new List<GroupNode>();
-    private int _addedObjectsCount;
+    private SharpEngineSceneView _liveView = null!;
+    private TargetPositionCamera? _camera;
+    private StandardMaterial? _mat;
+    private MeshModelNode? _node;
 
-    private BitmapTextCreator? _bitmapTextCreator;
+    private bool _liveInitialized;
+    private string? _lastBuiltId;
 
-    /// <inheritdoc />
     protected override void OnAfterRender(bool firstRender)
     {
-
-        if (firstRender)
+        if (!_liveInitialized && _liveView?.SceneView != null)
         {
-            InitializeScene();
-            CreateDemoScene();
+            InitializeLiveScene();
+            BuildSelectedModelAndCaptureFireAndForget();
+            _liveInitialized = true;
         }
     }
-    
 
-    private void InitializeScene()
+    private string GetTileClass(GalleryItem item)
+        => _selectedId == item.Id ? "tile-base tile-selected" : "tile-base";
+
+    private void Select(string id)
     {
-        var scene         = sharpEngineSceneView.Scene;
-        var sceneView     = sharpEngineSceneView.SceneView;
-        var canvasInterop = sharpEngineSceneView.CanvasInterop;
+        if (_selectedId == id)
+            return;
 
+        _selectedId = id;
 
-        // Use CanvasInterop to subscribe to canvas pointer moved event
-        canvasInterop.PointerMoved += (sender, args) =>
-        {
-            var hitObject = sceneView.GetClosestHitObject(args.MouseX, args.MouseY);
-            if (hitObject != null && hitObject.HitSceneNode != null)
-            {
-                ShowInfoMessage($"Hit object: {hitObject.HitSceneNode.Name}");
-                SelectSceneNode(hitObject.HitSceneNode);
-            }
-            else
-            {
-                ShowInfoMessage("Hit object: none");
-                SelectSceneNode(null);
-            }
-        };
+        if (_liveInitialized)
+            BuildSelectedModelAndCaptureFireAndForget();
+    }
 
+    private void InitializeLiveScene()
+    {
+        var scene = _liveView.Scene;
+        var sceneView = _liveView.SceneView;
 
         sceneView.BackgroundColor = Colors.LightSkyBlue;
 
-        _targetPositionCamera = new TargetPositionCamera()
+        scene.SetAmbientLight(0.25f);
+        scene.Lights.Add(new DirectionalLight(new Vector3(-1, -0.6f, -0.2f)));
+
+        _camera = new TargetPositionCamera
         {
-            Heading = 30,
+            Heading = 35,
             Attitude = -25,
-            Distance = 500,
-            TargetPosition = new Vector3(0, 0, 0),
-            ShowCameraLight = ShowCameraLightType.Auto,
+            Distance = 5,
+            TargetPosition = new Vector3(0.5f, 0.5f, 0.5f),
+            ShowCameraLight = ShowCameraLightType.Never
         };
 
-        sceneView.Camera = _targetPositionCamera;
-
-        _pointerCameraController = new PointerCameraController(sceneView)
-        {
-            RotateCameraConditions = PointerAndKeyboardConditions.LeftPointerButtonPressed,
-            MoveCameraConditions = PointerAndKeyboardConditions.LeftPointerButtonPressed | PointerAndKeyboardConditions.ControlKey,
-            ZoomMode = CameraZoomMode.PointerPosition,
-            RotateAroundPointerPosition = true,
-            IsPinchZoomEnabled = true, // zoom with touch pinch gesture
-            IsPinchMoveEnabled = true  // move camera with two fingers
-        };
-
-
-        sceneView.SceneRendered += (sender, args) => UpdateRenderTime();
-
-
-        scene.SetAmbientLight(0.2f);
-
-        canvasInterop.ContextLost += (sender, args) =>
-        {
-            // Usually here we would save the current state of the 3D scene so that can be recreated when the page is reloaded by the used
-            ShowInfoMessage("ERROR: WebGL context lost! Please reload the web page...");
-        };
+        sceneView.Camera = _camera;
     }
 
-    private void CreateDemoScene()
+    private void BuildSelectedModelAndCaptureFireAndForget()
     {
-        var scene = sharpEngineSceneView.Scene;
+        if (_lastBuiltId == _selectedId)
+            return;
 
+        _lastBuiltId = _selectedId;
+
+        var scene = _liveView.Scene;
+
+        if (_node != null)
+        {
+            scene.RootNode.Remove(_node);
+            _node.Dispose();
+            _node = null;
+        }
+
+        // Mock model: single voxel cube for all items
         var model = new VoxelModel(depth: 6);
         model.SetVoxel(0, 0, 0, 1);
 
         var mesh = model.BuildMesh();
 
-        var node = new MeshModelNode(
-            mesh,
-            new StandardMaterial(Colors.Orange),
-            "Voxel");
+        var hue = (_selectedId[0] * 37) % 360;
+        var color = Color3.FromHsl(hue);
 
-        scene.RootNode.Add(node);
+        _mat = new StandardMaterial(color);
+        _node = new MeshModelNode(mesh, _mat, name: $"Voxel_{_selectedId}");
+        scene.RootNode.Add(_node);
 
-        _targetPositionCamera!.TargetPosition = new Vector3(0.5f, 0.5f, 0.5f);
-        _targetPositionCamera.Distance = 5;
+        _camera!.TargetPosition = new Vector3(0.5f, 0.5f, 0.5f);
+        _camera.Distance = 5;
+
+        _ = CaptureThumbnailAsync(_selectedId);
     }
 
-    
-
-    private void UpdateRenderTime()
+    private async Task EnsureCaptureJsAsync()
     {
-        var statistics = sharpEngineSceneView.SceneView.Statistics;
-        if (_showRenderTimes && statistics != null)
-            Console.WriteLine($"RenderTime: {statistics.TotalRenderTimeMs:F2} ms");
-    }
-
-    private void SelectSceneNode(SceneNode? sceneNode)
-    {
-        if (sceneNode == _lastSelectedModelNode)
+        if (_captureJsInjected)
             return;
 
-        if (_lastSelectedModelNode != null)
-        {
-            _lastSelectedModelNode.Material = _lastSelectedModelNodeMaterial;
-            _lastSelectedModelNode = null;
-            _lastSelectedModelNodeMaterial = null;
-        }
+        // Single-file JS injection (no extra files).
+        // Use a verbatim string (@"...") to avoid Razor choking on raw string literals.
+        var js = @"
+window.__captureCanvasToPng = function (canvasId) {
+    const c = document.getElementById(canvasId);
+    if (!c) return null;
+    try {
+        return c.toDataURL('image/png');
+    } catch (e) {
+        console.error('capture failed', e);
+        return null;
+    }
+};
+";
+        await JS.InvokeVoidAsync("eval", js);
 
-        if (sceneNode is ModelNode modelNode)
-        {
-            _lastSelectedModelNodeMaterial = modelNode.Material;
-            _lastSelectedModelNode = modelNode;
-
-            modelNode.Material = StandardMaterials.Red;
-        }
+        _captureJsInjected = true;
     }
 
-
-    private void AddManyObjects()
+    private async Task CaptureThumbnailAsync(string itemId)
     {
-        int objectsCount = 1000;
-
-        var startTime = Stopwatch.GetTimestamp();
-
-        var scene = sharpEngineSceneView.Scene;
-
-        var groupNode = new GroupNode($"AddedObjectsGroup_{_addedObjectsCount}");
-        scene.RootNode.Add(groupNode);
-
-        var material = StandardMaterials.LightGreen;
-
-        for (int i = 0; i < objectsCount; i++)
-        {
-            var boxModelNode = new BoxModelNode(centerPosition: new Vector3(_addedObjectsCount * 30, -30, -50 + i * 15),
-                                                size: new Vector3(10, 10, 10),
-                                                material,
-                                                name: $"Box_{_addedObjectsCount + 1}_{i + 1}");
-
-            groupNode.Add(boxModelNode);
-        }
-
-        _addedObjectsCount++;
-
-        Console.WriteLine($"Adding {objectsCount} in {Stopwatch.GetElapsedTime(startTime).TotalMilliseconds:F2} ms");
-
-        _addedObjects.Add(groupNode);
-
-        ShowRenderedObjectsCount();
-    }
-
-    private void RemoveAddedObjects()
-    {
-        var scene = sharpEngineSceneView.Scene;
-
-        foreach (var groupNode in _addedObjects)
-        {
-            scene.RootNode.Remove(groupNode);
-
-            // Also dispose all meshes, materials and textures here.
-            groupNode.DisposeWithAllChildren(disposeMeshes: true, disposeMaterials: true, disposeTextures: true);
-
-            _addedObjectsCount--;
-        }
-
-        _addedObjects.Clear();
-
-        ShowRenderedObjectsCount();
-    }
-
-    private void ChangeMaterial()
-    {
-        if (_hashMaterial == null)
-            return;
-        
-        _hashMaterial.DiffuseColor = Color3.FromHsl(Random.Shared.NextDouble() * 360); 
-    }
-
-    private void OnStartStopCameraRotationButtonClicked()
-    {
-        if (_targetPositionCamera == null)
+        if (!_liveInitialized)
             return;
 
-        if (_targetPositionCamera.IsRotating)
+        await EnsureCaptureJsAsync();
+
+        // Let at least one frame render after scene changes
+        await Task.Delay(80);
+
+        var dataUrl = await JS.InvokeAsync<string?>("__captureCanvasToPng", "live_preview_canvas");
+
+        if (!string.IsNullOrWhiteSpace(dataUrl))
         {
-            _targetPositionCamera.StopRotation();
-            _cameraRotationButtonText = "Start camera rotation";
-        }
-        else
-        {
-            _targetPositionCamera.StartRotation(headingChangeInSecond: 40);
-            _cameraRotationButtonText = "Stop camera rotation";
+            _thumbnails[itemId] = dataUrl!;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    private void ShowRenderedObjectsCount()
-    {
-        int totalObjectsCount = 0;
-        sharpEngineSceneView.Scene.RootNode.ForEachChild((_ => totalObjectsCount++));
+    private Task CaptureSelectedThumbAsync() => CaptureThumbnailAsync(_selectedId);
 
-        ShowInfoMessage($"Rendering {totalObjectsCount} objects");
+    private void StartSpin()
+    {
+        if (_camera == null) return;
+        _camera.StartRotation(headingChangeInSecond: 35);
     }
 
-    private void ShowInfoMessage(string message)
+    private void StopSpin()
     {
-        _infoText = message;
-        StateHasChanged(); // Forces UI refresh (this is required because this event is called outside of Blazor rendering)
+        if (_camera == null) return;
+        _camera.StopRotation();
     }
 
-    private void OnCameraRotateSettingsChanged(ChangeEventArgs e)
+    private void RandomizeColor()
     {
-        if (_pointerCameraController == null)
-            return;
+        if (_mat == null) return;
+        _mat.DiffuseColor = Color3.FromHsl(Random.Shared.NextDouble() * 360);
 
-        bool isChecked = e.Value != null && (bool)e.Value;
-
-        _pointerCameraController.RotateCameraConditions = isChecked ? PointerAndKeyboardConditions.LeftPointerButtonPressed
-                                                                    : PointerAndKeyboardConditions.Disabled;
-    }
-
-    private void OnCameraMoveSettingsChanged(ChangeEventArgs e)
-    {
-        if (_pointerCameraController == null)
-            return;
-
-        bool isChecked = e.Value != null && (bool)e.Value;
-
-        _pointerCameraController.MoveCameraConditions = isChecked ? PointerAndKeyboardConditions.ControlKey | PointerAndKeyboardConditions.LeftPointerButtonPressed
-                                                                  : PointerAndKeyboardConditions.Disabled;
-
-        _pointerCameraController.IsPinchMoveEnabled = isChecked;
-    }
-
-    private void OnCameraZoomSettingsChanged(ChangeEventArgs e)
-    {
-        if (_pointerCameraController == null)
-            return;
-
-        bool isChecked = e.Value != null && (bool)e.Value;
-
-        _pointerCameraController.IsPointerWheelZoomEnabled = isChecked;
-        _pointerCameraController.IsPinchZoomEnabled = isChecked;
-    }
-
-    private void OnUseCameraLightCheckBoxChanged(ChangeEventArgs e)
-    {
-        if (_targetPositionCamera == null)
-            return;
-
-        var scene = sharpEngineSceneView.Scene;
-
-        _useCameraLight = e.Value != null && (bool)e.Value;
-        if (_useCameraLight)
-        {
-            if (_directionalLight != null)
-            {
-                scene.Lights.Remove(_directionalLight);
-                _directionalLight = null;
-            }
-            
-            _targetPositionCamera.ShowCameraLight = ShowCameraLightType.Always;
-        }
-        else
-        {
-            _targetPositionCamera.ShowCameraLight = ShowCameraLightType.Never;
-
-            _directionalLight ??= new DirectionalLight(new Vector3(-1, -0.5f, 0));
-            scene.Lights.Add(_directionalLight);
-        }
+        _ = CaptureThumbnailAsync(_selectedId);
     }
 
     public void Dispose()
     {
-        sharpEngineSceneView.Dispose();
+        _liveView?.Dispose();
     }
 }

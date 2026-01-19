@@ -9,7 +9,7 @@ using SEM_Drahos.Endpoints;
 var builder = WebApplication.CreateBuilder(args);
 
 var jwt = builder.Configuration.GetSection("Jwt");
-
+/* ---------- AUTH ---------- */
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -26,39 +26,48 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddAuthorization();
+
+/* ---------- CORS (REQUIRED FOR WASM) ---------- */
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    });
+});
+
+/* ---------- SERVICES ---------- */
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<PotDbContext>();
-builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+/* ---------- REQUEST LOGGING ---------- */
 app.Use(async (context, next) =>
 {
     var request = context.Request;
 
-    Console.WriteLine(
-        $"[{DateTime.UtcNow:O}] {request.Method} {request.Scheme}://{request.Host}{request.Path}{request.QueryString}");
+    Console.WriteLine($"[{DateTime.UtcNow:O}] {request.Method} {request.Scheme}://{request.Host}{request.Path}{request.QueryString}");
 
     await next();
 });
 
-
-// Configure the HTTP request pipeline.
+/* ---------- PIPELINE ---------- */
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
+app.UseHttpsRedirection();
+
+app.UseCors("Frontend");
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseHttpsRedirection();
+
+/* ---------- ENDPOINTS ---------- */
 app.MapAuthEndpoints();
+app.MapModelEndpoints();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
