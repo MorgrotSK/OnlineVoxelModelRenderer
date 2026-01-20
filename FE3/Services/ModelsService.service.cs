@@ -17,4 +17,8 @@ public sealed class ModelsService(ModelsApi api)
     public Task<Stream> GetThumbnailStreamAsync(string modelId, CancellationToken ct = default) => api.GetThumbnailStreamAsync(modelId, ct);
     public Task<ModelItem> GetModelMetaAsync(string modelId, CancellationToken ct = default) => api.GetModelMetaAsync(modelId, ct);
     public Task<Stream> GetModelStreamAsync(string modelId, CancellationToken ct = default) => api.GetModelStreamAsync(modelId, ct);
+    public async Task SetAccessAsync(string modelId, bool isPrivate, CancellationToken ct = default) => await api.SetAccessAsync(modelId, isPrivate, ct);
+    public async Task RemoveModelAsync(string modelId, CancellationToken ct = default) => await api.RemoveModelAsync(modelId, ct);
+        
+    
 }

@@ -25,6 +25,23 @@ public sealed class ModelsApi(HttpClient api)
         return await api.PostAsync("/models/upload", form, ct);
     }
     
+    public async Task SetAccessAsync(string modelId, bool isPrivate, CancellationToken ct = default)
+    {
+        using var res = await api.PostAsync(
+            $"/models/{modelId}/access?access={isPrivate.ToString().ToLowerInvariant()}",
+            content: null,
+            ct);
+        
+        res.EnsureSuccessStatusCode();
+    }
+    
+    public async Task RemoveModelAsync(string modelId, CancellationToken ct = default)
+    {
+        using var res = await api.DeleteAsync($"/models/{modelId}", ct);
+
+        res.EnsureSuccessStatusCode();
+    }
+    
     public async Task<Stream> GetModelStreamAsync(string modelId, CancellationToken ct = default)
     {
         var res = await api.GetAsync($"/models/{modelId}", HttpCompletionOption.ResponseHeadersRead, ct);

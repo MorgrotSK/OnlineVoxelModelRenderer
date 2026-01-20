@@ -1,10 +1,33 @@
 ﻿@page "/model/{Id}"
+@using FE3.Api.Types
 @using FE3.Components
 @using FE3.VoxelRenderer
+@using Microsoft.AspNetCore.Components.Authorization
 @inject ModelsService Models
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 
 <MudContainer MaxWidth="MaxWidth.False" Class="pa-6">
 
+    @if (_isOwner && _meta != null)
+    {
+        <MudPaper Class="pa-3 mt-3" Elevation="1">
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Error"
+                           OnClick="DeleteAsync">
+                    Delete
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           OnClick="ToggleAccessAsync">
+                    @(_meta.IsPrivate ? "Publish" : "Make Private")
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+    
     <MudPaper Class="pa-3" Elevation="1">
         <MudText Typo="Typo.h6">Model Viewer</MudText>
     </MudPaper>
@@ -39,12 +62,25 @@
 
     VoxelModelViewer _viewer = null!;
     VoxelModel? _model;
+    ModelItem? _meta;
+    bool _isOwner;
     string? _error;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+            _meta = await Models.GetModelMetaAsync(Id);
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            var userId =
+                user.FindFirst("sub")?.Value ??
+                user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            _isOwner = userId != null && userId == _meta.OwnerId;
+
             await using var stream = await Models.GetModelStreamAsync(Id);
 
             using var ms = new MemoryStream();
@@ -58,6 +94,34 @@
         }
     }
 
+
+    private async Task ToggleAccessAsync()
+    {
+        if (_meta == null) return;
+
+        try
+        {
+            await Models.SetAccessAsync(Id, !_meta.IsPrivate);
+            _meta.IsPrivate = !_meta.IsPrivate;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        try
+        {
+            await Models.RemoveModelAsync(Id);
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
     public void Dispose()
     {
         _model?.Dispose();

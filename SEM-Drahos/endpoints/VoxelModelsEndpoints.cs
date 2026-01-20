@@ -20,6 +20,8 @@ public static class VoxelModelsEndpoints
         group.MapGet("/{id}/thumbnail", GetModelThumbnail).AllowAnonymous().DisableAntiforgery();
         group.MapGet("/", GetAllModels).AllowAnonymous().DisableAntiforgery();
         group.MapGet("/{id}", GetModel).AllowAnonymous().DisableAntiforgery();
+        group.MapPatch("/{id}/{access:bool}", SetAccess).RequireAuthorization().DisableAntiforgery();
+        group.MapDelete("/{id}", RemoveModel).RequireAuthorization().DisableAntiforgery();
         group.MapGet("/{id}/meta", GetModelMeta).AllowAnonymous().DisableAntiforgery();
     }
     
@@ -43,6 +45,33 @@ public static class VoxelModelsEndpoints
 
     }
     
+    
+    private static async Task<IResult> SetAccess(ClaimsPrincipal user, PotDbContext db, string id, bool access)
+    {
+        var (ok, result, model) = await ModelsHelpers.VerifyModelPermission(user, db, id);
+
+        if (!ok) return result;
+        
+        var entity = await db.VoxelModels.FirstOrDefaultAsync(m => m.Id == id);
+        entity.IsPrivate = access;
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { id});
+    }
+    
+    
+    private static async Task<IResult> RemoveModel(ClaimsPrincipal user, PotDbContext db, string id)
+    {
+        var (ok, result, model) = await ModelsHelpers.VerifyModelPermission(user, db, id);
+
+        if (!ok) return result;
+        
+        db.VoxelModels.Remove(await db.VoxelModels.FirstOrDefaultAsync(m => m.Id == id));
+        await db.SaveChangesAsync();
+
+        return Results.Ok(new { id});
+    }
+    
     private static async Task<IResult> GetModelMeta(ClaimsPrincipal user, PotDbContext db, string id)
     {
         var (ok, result, model) = await ModelsHelpers.VerifyModelPermission(user, db, id);
@@ -51,7 +80,7 @@ public static class VoxelModelsEndpoints
 
         var (ownerId, isPrivate, name, createdAtUtc) = model!.Value;
 
-        return Results.Ok(new { id = id, name = name, createdAtUtc = createdAtUtc});
+        return Results.Ok(new { id = id, name = name, createdAtUtc = createdAtUtc, isPrivate = isPrivate, ownerId = ownerId });
     }
 
 

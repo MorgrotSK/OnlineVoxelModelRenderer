@@ -24,13 +24,22 @@
         <MudIconButton Icon="@DarkLightModeButtonIcon"Color="Color.Inherit"OnClick="@(() => DarkModeToggle())" />
 
         <AuthorizeView>
-            <Authorized>
-                <MudButton Variant="Variant.Text"Color="Color.Inherit"OnClick="@(() => Logout())">
+            <Authorized Context="auth">
+                <MudText Class="mr-3" Typo="Typo.subtitle2">
+                    @auth.User.Identity!.Name
+                </MudText>
+
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Inherit"
+                           OnClick="@Logout">
                     Logout
                 </MudButton>
             </Authorized>
+
             <NotAuthorized>
-                <MudButton Variant="Variant.Text"Color="Color.Inherit"Href="/login">
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Inherit"
+                           Href="/login">
                     Login
                 </MudButton>
             </NotAuthorized>

@@ -63,12 +63,13 @@ public static class AuthEndpoints
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-            new Claim(JwtRegisteredClaimNames.Name, user.UserName)
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.Name, user.UserName),
         };
 
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwt["Key"]!));
+            Encoding.UTF8.GetBytes(jwt["Key"]!)
+        );
 
         var token = new JwtSecurityToken(
             issuer: jwt["Issuer"],
@@ -89,8 +90,8 @@ public static class AuthEndpoints
     {
         return Results.Ok(new
         {
-            Id = user.FindFirstValue(JwtRegisteredClaimNames.Sub),
-            UserName = user.FindFirstValue(JwtRegisteredClaimNames.Name)
+            Id = user.FindFirstValue(ClaimTypes.NameIdentifier),
+            UserName = user.Identity?.Name
         });
     }
 }
