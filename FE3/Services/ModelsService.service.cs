@@ -1,4 +1,5 @@
 ﻿using FE3.Api;
+using FE3.Api.Types;
 
 public sealed class ModelsService(ModelsApi api)
 {
@@ -11,4 +12,9 @@ public sealed class ModelsService(ModelsApi api)
             throw new InvalidOperationException($"Upload failed ({(int)res.StatusCode}): {body}");
         }
     }
+    
+    public Task<IReadOnlyList<ModelItem>> GetPublicModelsAsync(CancellationToken ct = default) => api.GetPublicModelsAsync(ct);
+    public Task<Stream> GetThumbnailStreamAsync(string modelId, CancellationToken ct = default) => api.GetThumbnailStreamAsync(modelId, ct);
+    public Task<ModelItem> GetModelMetaAsync(string modelId, CancellationToken ct = default) => api.GetModelMetaAsync(modelId, ct);
+    public Task<Stream> GetModelStreamAsync(string modelId, CancellationToken ct = default) => api.GetModelStreamAsync(modelId, ct);
 }

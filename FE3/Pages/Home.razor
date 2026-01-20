@@ -1,365 +1,225 @@
-﻿@page "/"
-@using System.Linq
-@using System.Numerics
-@using Microsoft.JSInterop
+﻿@* Pages/Index.razor (ONLY change: replace the inline MudCard with a component call) *@
+@page "/"
+@using FE3.Api.Types
 @using MudBlazor
-@using Ab4d.SharpEngine.Cameras
-@using Ab4d.SharpEngine.Common
-@using Ab4d.SharpEngine.Materials
-@using Ab4d.SharpEngine.SceneNodes
-@using Ab4d.SharpEngine.Lights
-@using Ab4d.SharpEngine.Meshes
-@using FE3.VoxelRenderer
-@using Colors = Ab4d.SharpEngine.Common.Colors
-@implements IDisposable
-@inject IJSRuntime JS
+@using FE3.Components
+@inject Uri ApiBaseUri
+@inject ModelsService ModelsService
 
 <MudContainer MaxWidth="MaxWidth.False" Class="pa-6">
+
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h4">Voxel Gallery</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            Grid uses real screenshots captured from the single live WebGL preview.
-        </MudText>
 
-        <MudGrid Spacing="3">
-            <!-- LEFT: grid thumbnails (images captured from live preview) -->
-            <MudItem xs="12" md="7" lg="8">
-                <MudGrid Spacing="3">
-                    @foreach (var item in _items)
-                    {
-                        <MudItem xs="12" sm="6" md="6" lg="4" @key="item.Id">
-                            <MudPaper Elevation="0"
-                                      Outlined="true"
-                                      Class="@GetTileClass(item)"
-                                      OnClick="@(() => Select(item.Id))">
+        <!-- Header -->
+        <MudPaper Outlined="true" Class="pa-4">
+            <MudText Typo="Typo.h4">Voxel Gallery</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Browse public voxel models
+            </MudText>
+        </MudPaper>
 
-                                <div class="tile">
-                                    <div class="tile-preview">
-                                        @if (_thumbnails.TryGetValue(item.Id, out var img))
-                                        {
-                                            <img src="@img" class="thumb-img" />
-                                        }
-                                        else
-                                        {
-                                            <div class="thumb-loading">
-                                                <MudProgressCircular Indeterminate Size="Size.Small" />
-                                            </div>
-                                        }
-                                    </div>
+        <!-- Controls -->
+        <MudPaper Outlined="true" Class="pa-4">
+            <MudGrid Spacing="2" AlignItems="AlignItems.Center">
 
-                                    <div class="tile-meta">
-                                        <MudText Typo="Typo.subtitle1" Class="tile-title">@item.Title</MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">by @item.Author</MudText>
+                <MudItem xs="12" md="4">
+                    <MudTextField Label="Search"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  @bind-Value="Search"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Disabled="_loading" />
+                </MudItem>
 
-                                        @if (_selectedId == item.Id)
-                                        {
-                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Class="mt-2">
-                                                Selected
-                                            </MudChip>
-                                        }
-                                        else
-                                        {
-                                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined" Class="mt-2">
-                                                Click to select
-                                            </MudChip>
-                                        }
-                                    </div>
-                                </div>
-                            </MudPaper>
-                        </MudItem>
-                    }
-                </MudGrid>
-            </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="SortMode"
+                               Label="Sort"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               @bind-Value="Sort"
+                               Disabled="_loading">
+                        <MudSelectItem Value="SortMode.Newest">Newest</MudSelectItem>
+                        <MudSelectItem Value="SortMode.Oldest">Oldest</MudSelectItem>
+                        <MudSelectItem Value="SortMode.NameAsc">Name (A–Z)</MudSelectItem>
+                        <MudSelectItem Value="SortMode.NameDesc">Name (Z–A)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
 
-            <!-- RIGHT: single live WebGL preview -->
-            <MudItem xs="12" md="5" lg="4">
-                <MudPaper Elevation="0" Outlined="true" Class="live-card">
-                    <MudStack Spacing="2" Class="pa-4">
-                        <MudText Typo="Typo.h6">Live preview</MudText>
+                <MudItem xs="12" md="3">
+                    <MudSelect T="int"
+                               Label="Items per page"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               @bind-Value="PageSize"
+                               Disabled="_loading">
+                        <MudSelectItem Value="12">12</MudSelectItem>
+                        <MudSelectItem Value="24">24</MudSelectItem>
+                        <MudSelectItem Value="48">48</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
 
-                        <div class="live-preview-wrap">
-                            <SharpEngineSceneView @ref="_liveView"
-                                                  CanvasId="live_preview_canvas"
-                                                  CanvasWidth="420"
-                                                  CanvasHeight="320"
-                                                  style="width: 100%; height: 320px;">
-                            </SharpEngineSceneView>
-                        </div>
+            </MudGrid>
+        </MudPaper>
 
-                        <MudDivider />
+        @if (_loading)
+        {
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudProgressLinear Indeterminate />
+            </MudPaper>
+        }
+        else if (_filtered.Count == 0)
+        {
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudText Color="Color.Secondary">No models found.</MudText>
+            </MudPaper>
+        }
+        else
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Showing @PageItems.Count() of @_filtered.Count models
+            </MudText>
 
-                        <MudStack Spacing="1">
-                            <MudText Typo="Typo.subtitle1" Class="tile-title">@SelectedItem?.Title</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">by @SelectedItem?.Author</MudText>
-                        </MudStack>
+            <!-- Grid -->
+            <MudGrid Spacing="3">
+                @foreach (var model in PageItems)
+                {
+                    <MudItem xs="12" sm="6" md="4" lg="3" xl="2" @key="model.Id">
+                        <VoxelGalleryItem Model="model" ApiBaseUri="ApiBaseUri" />
+                    </MudItem>
+                }
+            </MudGrid>
 
-                        <MudStack Row="true" Spacing="1">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@StartSpin">Spin</MudButton>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@StopSpin">Stop</MudButton>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@RandomizeColor">Color</MudButton>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="@CaptureSelectedThumbAsync">Capture</MudButton>
-                        </MudStack>
+            <!-- Pager -->
+            <MudPaper Outlined="true" Class="pa-4 mt-4">
+                <MudStack Row
+                          Spacing="2"
+                          AlignItems="AlignItems.Center"
+                          JustifyContent="JustifyContent.SpaceBetween">
+
+                    <MudText Typo="Typo.body2">
+                        Page @(_pageIndex + 1) of @TotalPages
+                    </MudText>
+
+                    <MudStack Row Spacing="1">
+                        <MudButton Variant="Variant.Outlined"
+                                   Disabled="_pageIndex == 0"
+                                   OnClick="@(() => PrevPage())">
+                            Prev
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Disabled="_pageIndex >= TotalPages - 1"
+                                   OnClick="@(() => NextPage())">
+                            Next
+                        </MudButton>
                     </MudStack>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+
+                </MudStack>
+            </MudPaper>
+        }
+
     </MudStack>
+
 </MudContainer>
 
-<style>
-    .tile {
-        display: flex;
-        gap: 14px;
-        align-items: center;
-        padding: 14px;
-        border-radius: 16px;
-        cursor: pointer;
-        user-select: none;
-        transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
-    }
-    .tile:hover { transform: translateY(-1px); }
-
-    .tile-preview {
-        flex: 0 0 auto;
-        width: 148px;
-        height: 148px;
-        display: grid;
-        place-items: center;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.65);
-        overflow: hidden;
-        border: 1px solid rgba(0,0,0,0.08);
-    }
-
-    .thumb-loading {
-        width: 100%;
-        height: 100%;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(180deg, rgba(255,255,255,0.90), rgba(255,255,255,0.35));
-    }
-
-    .thumb-img {
-        width: 140px;
-        height: 140px;
-        border-radius: 12px;
-        object-fit: contain;
-        display: block;
-    }
-
-    .tile-meta { min-width: 0; flex: 1 1 auto; }
-
-    .tile-title {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
-    }
-
-    .tile-base {
-        border-radius: 18px;
-        background: rgba(255,255,255,0.55);
-        backdrop-filter: blur(6px);
-    }
-
-    .tile-selected {
-        border-color: rgba(25, 118, 210, 0.65) !important;
-        box-shadow: 0 8px 30px rgba(25, 118, 210, 0.18);
-    }
-
-    .live-card {
-        border-radius: 18px;
-        background: rgba(255,255,255,0.55);
-        backdrop-filter: blur(6px);
-    }
-
-    .live-preview-wrap {
-        border-radius: 14px;
-        overflow: hidden;
-        border: 1px solid rgba(0,0,0,0.08);
-    }
-</style>
-
 @code {
-    private sealed class GalleryItem
+    private bool _loading = true;
+    private IReadOnlyList<ModelItem> _models = Array.Empty<ModelItem>();
+    private List<ModelItem> _filtered = new();
+
+    private int _pageIndex = 0;
+    private int _pageSize = 24;
+    private string _search = "";
+    private SortMode _sort = SortMode.Newest;
+
+    protected override async Task OnInitializedAsync()
     {
-        public required string Id { get; init; }
-        public required string Title { get; init; }
-        public required string Author { get; init; }
+        _models = await ModelsService.GetPublicModelsAsync();
+        _loading = false;
+        Recompute();
     }
 
-    private readonly List<GalleryItem> _items = new()
+    private void Recompute()
     {
-        new() { Id = "a", Title = "Single Cube",        Author = "Mock Author 1" },
-        new() { Id = "b", Title = "Voxel Test Asset",   Author = "Mock Author 2" },
-        new() { Id = "c", Title = "Prototype Model",    Author = "Mock Author 3" },
-        new() { Id = "d", Title = "Blockout Preview",   Author = "Mock Author 4" },
-        new() { Id = "e", Title = "Orange Sample",      Author = "Mock Author 5" },
-        new() { Id = "f", Title = "Tiny Voxel Cube",    Author = "Mock Author 6" },
-    };
+        IEnumerable<ModelItem> q = _models;
 
-    private string _selectedId = "a";
-    private GalleryItem? SelectedItem => _items.FirstOrDefault(x => x.Id == _selectedId);
-
-    private readonly Dictionary<string, string> _thumbnails = new();
-    private bool _captureJsInjected;
-
-    private SharpEngineSceneView _liveView = null!;
-    private TargetPositionCamera? _camera;
-    private StandardMaterial? _mat;
-    private MeshModelNode? _node;
-
-    private bool _liveInitialized;
-    private string? _lastBuiltId;
-
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (!_liveInitialized && _liveView?.SceneView != null)
+        if (!string.IsNullOrWhiteSpace(_search))
         {
-            InitializeLiveScene();
-            BuildSelectedModelAndCaptureFireAndForget();
-            _liveInitialized = true;
+            q = q.Where(m =>
+                !string.IsNullOrEmpty(m.Name) &&
+                m.Name.Contains(_search, StringComparison.OrdinalIgnoreCase));
         }
-    }
 
-    private string GetTileClass(GalleryItem item)
-        => _selectedId == item.Id ? "tile-base tile-selected" : "tile-base";
-
-    private void Select(string id)
-    {
-        if (_selectedId == id)
-            return;
-
-        _selectedId = id;
-
-        if (_liveInitialized)
-            BuildSelectedModelAndCaptureFireAndForget();
-    }
-
-    private void InitializeLiveScene()
-    {
-        var scene = _liveView.Scene;
-        var sceneView = _liveView.SceneView;
-
-        sceneView.BackgroundColor = Colors.LightSkyBlue;
-
-        scene.SetAmbientLight(0.25f);
-        scene.Lights.Add(new DirectionalLight(new Vector3(-1, -0.6f, -0.2f)));
-
-        _camera = new TargetPositionCamera
+        q = _sort switch
         {
-            Heading = 35,
-            Attitude = -25,
-            Distance = 5,
-            TargetPosition = new Vector3(0.5f, 0.5f, 0.5f),
-            ShowCameraLight = ShowCameraLightType.Never
+            SortMode.Newest => q.OrderByDescending(m => m.CreatedAtUtc),
+            SortMode.Oldest => q.OrderBy(m => m.CreatedAtUtc),
+            SortMode.NameAsc => q.OrderBy(m => m.Name),
+            SortMode.NameDesc => q.OrderByDescending(m => m.Name),
+            _ => q
         };
 
-        sceneView.Camera = _camera;
+        _filtered = q.ToList();
+        _pageIndex = 0;
     }
 
-    private void BuildSelectedModelAndCaptureFireAndForget()
+    private IEnumerable<ModelItem> PageItems =>
+        _filtered.Skip(_pageIndex * _pageSize).Take(_pageSize);
+
+    private int TotalPages =>
+        Math.Max(1, (int)Math.Ceiling(_filtered.Count / (double)_pageSize));
+
+    private void PrevPage()
     {
-        if (_lastBuiltId == _selectedId)
-            return;
+        if (_pageIndex > 0)
+            _pageIndex--;
+    }
 
-        _lastBuiltId = _selectedId;
+    private void NextPage()
+    {
+        if (_pageIndex < TotalPages - 1)
+            _pageIndex++;
+    }
 
-        var scene = _liveView.Scene;
-
-        if (_node != null)
+    private string Search
+    {
+        get => _search;
+        set
         {
-            scene.RootNode.Remove(_node);
-            _node.Dispose();
-            _node = null;
-        }
-
-        // Mock model: single voxel cube for all items
-        var model = new VoxelModel(depth: 6);
-        model.SetVoxel(0, 0, 0, 1);
-
-        var mesh = model.BuildMesh();
-
-        var hue = (_selectedId[0] * 37) % 360;
-        var color = Color3.FromHsl(hue);
-
-        _mat = new StandardMaterial(color);
-        _node = new MeshModelNode(mesh, _mat, name: $"Voxel_{_selectedId}");
-        scene.RootNode.Add(_node);
-
-        _camera!.TargetPosition = new Vector3(0.5f, 0.5f, 0.5f);
-        _camera.Distance = 5;
-
-        _ = CaptureThumbnailAsync(_selectedId);
-    }
-
-    private async Task EnsureCaptureJsAsync()
-    {
-        if (_captureJsInjected)
-            return;
-
-        // Single-file JS injection (no extra files).
-        // Use a verbatim string (@"...") to avoid Razor choking on raw string literals.
-        var js = @"
-window.__captureCanvasToPng = function (canvasId) {
-    const c = document.getElementById(canvasId);
-    if (!c) return null;
-    try {
-        return c.toDataURL('image/png');
-    } catch (e) {
-        console.error('capture failed', e);
-        return null;
-    }
-};
-";
-        await JS.InvokeVoidAsync("eval", js);
-
-        _captureJsInjected = true;
-    }
-
-    private async Task CaptureThumbnailAsync(string itemId)
-    {
-        if (!_liveInitialized)
-            return;
-
-        await EnsureCaptureJsAsync();
-
-        // Let at least one frame render after scene changes
-        await Task.Delay(80);
-
-        var dataUrl = await JS.InvokeAsync<string?>("__captureCanvasToPng", "live_preview_canvas");
-
-        if (!string.IsNullOrWhiteSpace(dataUrl))
-        {
-            _thumbnails[itemId] = dataUrl!;
-            await InvokeAsync(StateHasChanged);
+            if (_search == value) return;
+            _search = value;
+            Recompute();
         }
     }
 
-    private Task CaptureSelectedThumbAsync() => CaptureThumbnailAsync(_selectedId);
-
-    private void StartSpin()
+    private SortMode Sort
     {
-        if (_camera == null) return;
-        _camera.StartRotation(headingChangeInSecond: 35);
+        get => _sort;
+        set
+        {
+            if (_sort == value) return;
+            _sort = value;
+            Recompute();
+        }
     }
 
-    private void StopSpin()
+    private int PageSize
     {
-        if (_camera == null) return;
-        _camera.StopRotation();
+        get => _pageSize;
+        set
+        {
+            if (_pageSize == value) return;
+            _pageSize = value;
+            _pageIndex = 0;
+        }
     }
 
-    private void RandomizeColor()
+    private enum SortMode
     {
-        if (_mat == null) return;
-        _mat.DiffuseColor = Color3.FromHsl(Random.Shared.NextDouble() * 360);
-
-        _ = CaptureThumbnailAsync(_selectedId);
-    }
-
-    public void Dispose()
-    {
-        _liveView?.Dispose();
+        Newest,
+        Oldest,
+        NameAsc,
+        NameDesc
     }
 }

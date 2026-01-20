@@ -1,4 +1,6 @@
 ﻿using System.Net.Http.Headers;
+using System.Text.Json;
+using FE3.Api.Types;
 
 namespace FE3.Api;
 
@@ -22,4 +24,53 @@ public sealed class ModelsApi(HttpClient api)
 
         return await api.PostAsync("/models/upload", form, ct);
     }
+    
+    public async Task<Stream> GetModelStreamAsync(string modelId, CancellationToken ct = default)
+    {
+        var res = await api.GetAsync($"/models/{modelId}", HttpCompletionOption.ResponseHeadersRead, ct);
+
+        res.EnsureSuccessStatusCode();
+
+        return await res.Content.ReadAsStreamAsync(ct);
+    }
+    
+    public async Task<ModelItem> GetModelMetaAsync(
+        string modelId, CancellationToken ct = default)
+    {
+        using var res = await api.GetAsync($"/models/{modelId}/meta", ct);
+        res.EnsureSuccessStatusCode();
+
+        await using var stream = await res.Content.ReadAsStreamAsync(ct);
+
+        return await JsonSerializer.DeserializeAsync<ModelItem>(stream, JsonOptions, ct) ?? throw new InvalidOperationException("Invalid model metadata response.");
+    }
+    
+    public async Task<IReadOnlyList<ModelItem>> GetPublicModelsAsync(CancellationToken ct = default)
+    {
+        using var res = await api.GetAsync("/models", ct);
+        res.EnsureSuccessStatusCode();
+
+        await using var stream = await res.Content.ReadAsStreamAsync(ct);
+
+        return await JsonSerializer.DeserializeAsync<IReadOnlyList<ModelItem>>(stream, JsonOptions, ct) ?? [];
+    }
+    
+    public async Task<Stream> GetThumbnailStreamAsync(string modelId, CancellationToken ct = default) {
+        var res = await api.GetAsync(
+            $"/models/{modelId}/thumbnail",
+            HttpCompletionOption.ResponseHeadersRead,
+            ct);
+
+        res.EnsureSuccessStatusCode();
+
+        return await res.Content.ReadAsStreamAsync(ct);
+    }
+    
+    
+    private static readonly JsonSerializerOptions JsonOptions =
+        new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
 }

@@ -14,4 +14,6 @@ public sealed class VoxelModel
     
     public string Name { get; set; } = null!;
     public DateTime CreatedAtUtc { get; set; }
+    public bool IsPrivate { get; set; } = false;
+    public bool IsDeleted { get; set; } = false;
 }

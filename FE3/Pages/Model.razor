@@ -1,0 +1,65 @@
+﻿@page "/model/{Id}"
+@using FE3.Components
+@using FE3.VoxelRenderer
+@inject ModelsService Models
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-6">
+
+    <MudPaper Class="pa-3" Elevation="1">
+        <MudText Typo="Typo.h6">Model Viewer</MudText>
+    </MudPaper>
+
+    <MudPaper Class="pa-2 mt-3" Elevation="1">
+        @if (_error != null)
+        {
+            <MudAlert Severity="Severity.Error">@_error</MudAlert>
+        }
+        else if (_model == null)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else
+        {
+            <VoxelModelViewer @ref="_viewer"
+                              @key="_model"
+                              Title="Model"
+                              CanvasWidth="1100"
+                              CanvasHeight="650"
+                              ShowControls="true"
+                              Model="_model" />
+        }
+    </MudPaper>
+
+</MudContainer>
+
+@code
+{
+    [Parameter]
+    public string Id { get; set; } = null!;
+
+    VoxelModelViewer _viewer = null!;
+    VoxelModel? _model;
+    string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var stream = await Models.GetModelStreamAsync(Id);
+
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            _model = VoxelModel.Deserialize(ms.ToArray());
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    public void Dispose()
+    {
+        _model?.Dispose();
+    }
+}

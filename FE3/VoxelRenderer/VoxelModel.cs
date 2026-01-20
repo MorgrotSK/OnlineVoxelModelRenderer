@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Ab4d.SharpEngine.Common;
 using Ab4d.SharpEngine.Meshes;
+using FE3.VoxelRenderer.Blocks;
 using FE3.VoxelRenderer.Utils;
 using FE3.VoxelRenderer.Utils.Octree;
 using FE3.VoxelRenderer.Utils.UnmanagedStructures;
@@ -32,6 +33,7 @@ public sealed class VoxelModel(int depth, int initialCapacity = 128) : IDisposab
 
         var vertices = new List<PositionNormalTextureVertex>(quadCount * 4);
         var indices  = new List<int>(quadCount * 6);
+        
 
         for (int i = 0; i < quadCount; i++)
         {
@@ -41,6 +43,9 @@ public sealed class VoxelModel(int depth, int initialCapacity = 128) : IDisposab
 
             Vector3 normal;
             Span<Vector3> c = stackalloc Vector3[4];
+            Console.WriteLine(q.BlockId);
+            ref readonly var block = ref BlockDictionary.Get(q.BlockId - 1);
+            Float2x4 uv = block.UvPattern;
 
             switch (q.Axis)
             {
@@ -103,8 +108,8 @@ public sealed class VoxelModel(int depth, int initialCapacity = 128) : IDisposab
                 vertices.Add(new PositionNormalTextureVertex(
                     c[j],
                     normal,
-                    new Vector2(j == 1 || j == 2 ? 1f : 0f,
-                                j >= 2 ? 1f : 0f)));
+                    new Vector2(uv[j].X, uv[j].Y)
+                ));
             }
 
             indices.Add(baseIndex + 0);
@@ -113,6 +118,16 @@ public sealed class VoxelModel(int depth, int initialCapacity = 128) : IDisposab
             indices.Add(baseIndex + 0);
             indices.Add(baseIndex + 3);
             indices.Add(baseIndex + 2);
+            
+            if (block.IsTransparent)
+            {
+                indices.Add(baseIndex + 0);
+                indices.Add(baseIndex + 1);
+                indices.Add(baseIndex + 2);
+                indices.Add(baseIndex + 0);
+                indices.Add(baseIndex + 2);
+                indices.Add(baseIndex + 3);
+            }
         }
 
         return new TriangleMesh<PositionNormalTextureVertex>(vertices.ToArray(), indices.ToArray());
@@ -149,7 +164,8 @@ private void EmitLeafQuads(int x, int y, int z, int size, byte data, UnmanagedLi
         {
             Position = new Int3(fx, fy, fz),
             Size = size,
-            Axis = axis
+            Axis = axis,
+            BlockId = data
         });
     }
 }
@@ -188,8 +204,6 @@ private bool IsFaceFullyOccludedBySameData(int x, int y, int z, int size, byte d
 
     return true;
 }
-
-    
     
     public byte[] Serialize()
     {

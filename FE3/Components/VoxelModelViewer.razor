@@ -1,9 +1,13 @@
 ﻿@using System.Numerics
+@using Ab4d.SharpEngine
 @using Ab4d.SharpEngine.Cameras
 @using Ab4d.SharpEngine.Common
+@using Ab4d.SharpEngine.Core
 @using Ab4d.SharpEngine.Lights
 @using Ab4d.SharpEngine.Materials
 @using Ab4d.SharpEngine.SceneNodes
+@using Ab4d.SharpEngine.Utilities
+@using FE3.VoxelRenderer
 @using Colors = Ab4d.SharpEngine.Common.Colors
 @implements IDisposable
 @inject IJSRuntime JS
@@ -102,7 +106,7 @@
     MeshModelNode? _node;
     StandardMaterial? _mat;
     IJSObjectReference? _jsModule;
-
+    GpuImage? _diffuseGpuImage;
     bool _ready;
     bool _jsReady;
     string? _error;
@@ -125,15 +129,40 @@
 
         InitScene();
 
-        // Initialize UI state from defaults
         _heading = _defaultHeading;
         _attitude = _defaultAttitude;
         _distance = _defaultDistance;
         _spinSpeed = SpinSpeed;
 
-        _ready = true;
-        _ = LoadAsync();
+        // Not ready until GPU texture is loaded
+        _ready = false;
+
+        _view.SceneViewInitialized += OnSceneViewInitialized;
     }
+
+    
+    async void OnSceneViewInitialized(object? sender, EventArgs e)
+    {
+        try
+        {
+            var scene = _view.Scene;
+            
+            // GPU is guaranteed to exist here
+            _diffuseGpuImage = await TextureLoader.CreateTextureAsync("Atlas.png", scene);
+
+            if (Model != null)
+                BuildMesh(Model);
+
+            _ready = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            StateHasChanged();
+        }
+    }
+
 
     protected override void OnParametersSet()
     {
@@ -175,7 +204,6 @@
         {
             if (Model == null)
                 return;
-
             BuildMesh(Model);
 
             if (OnModelLoaded.HasDelegate)
@@ -192,7 +220,10 @@
     void BuildMesh(VoxelModel model)
     {
         var mesh = model.BuildMesh();
-        _mat = new StandardMaterial(Color3.FromHsl(25));
+        _mat = new StandardMaterial
+        {
+            DiffuseTexture = _diffuseGpuImage
+        };
         _node = new MeshModelNode(mesh, _mat);
         _view.Scene.RootNode.Add(_node);
 

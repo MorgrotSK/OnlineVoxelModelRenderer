@@ -1,6 +1,8 @@
 ﻿using SEM_Drahos.Data;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 using MongoDB.Bson;
 using SEM_Drahos.Data.entities;
 using SEM_Drahos.utils;
@@ -14,9 +16,68 @@ public static class VoxelModelsEndpoints
     {
         var group = app.MapGroup("/models");
 
-        group.MapPost("/upload", UploadModel).RequireAuthorization().DisableAntiforgery();;;
+        group.MapPost("/upload", UploadModel).RequireAuthorization().DisableAntiforgery();
+        group.MapGet("/{id}/thumbnail", GetModelThumbnail).AllowAnonymous().DisableAntiforgery();
+        group.MapGet("/", GetAllModels).AllowAnonymous().DisableAntiforgery();
+        group.MapGet("/{id}", GetModel).AllowAnonymous().DisableAntiforgery();
+        group.MapGet("/{id}/meta", GetModelMeta).AllowAnonymous().DisableAntiforgery();
     }
     
+    private static async Task<IResult> GetModel(ClaimsPrincipal user, PotDbContext db, IWebHostEnvironment env, string id)
+    {
+        var (ok, result, model) = await ModelsHelpers.VerifyModelPermission(user, db, id);
+
+        if (!ok) return result;
+
+        var (ownerId, _, _, createdAtUtc) = model!.Value;
+
+        var path = Path.Combine(env.ContentRootPath, "uploads", ownerId, id, "model.fotr");
+
+        if (!File.Exists(path)) return Results.NotFound();
+
+        return Results.File(
+            path,
+            contentType: "application/octet-stream",
+            enableRangeProcessing: true,
+            lastModified: File.GetLastWriteTimeUtc(path));
+
+    }
+    
+    private static async Task<IResult> GetModelMeta(ClaimsPrincipal user, PotDbContext db, string id)
+    {
+        var (ok, result, model) = await ModelsHelpers.VerifyModelPermission(user, db, id);
+
+        if (!ok) return result;
+
+        var (ownerId, isPrivate, name, createdAtUtc) = model!.Value;
+
+        return Results.Ok(new { id = id, name = name, createdAtUtc = createdAtUtc});
+    }
+
+
+
+    private static async Task<IResult> GetModelThumbnail(ClaimsPrincipal user, PotDbContext db, IWebHostEnvironment env, string id)
+    {
+        var (ok, result, model) = await ModelsHelpers.VerifyModelPermission(user, db, id);
+        
+        var path = Path.Combine(env.ContentRootPath, "uploads", model.Value.OwnerId, id, "thumbnail.png");
+
+        if (!File.Exists(path))
+            return Results.NotFound();
+
+        return Results.File(path, "image/png", enableRangeProcessing: true);
+    }
+
+    private static async Task<IResult> GetAllModels(ClaimsPrincipal user, PotDbContext db)
+    {
+        var models = await db.VoxelModels
+            .Where(m => !m.IsPrivate && !m.IsDeleted)
+            .OrderByDescending(m => m.CreatedAtUtc)
+            .ToListAsync();
+
+        return Results.Ok(models);
+    }
+
     private static async Task<IResult> UploadModel(
         IFormFile voxelModel, 
         IFormFile thumbnail, 
@@ -28,8 +89,7 @@ public static class VoxelModelsEndpoints
         
         var (isUserValid, dbUser, authError) = await UserHelpers.ValidateUserAsync(user, db);
 
-        if (!isUserValid)
-            return authError!;
+        if (!isUserValid) return authError!;
         
         //Data validation
         if (string.IsNullOrWhiteSpace(name))
@@ -70,12 +130,7 @@ public static class VoxelModelsEndpoints
         await db.SaveChangesAsync();
 
         // --- Response ---
-        return Results.Ok(new
-        {
-            Id = model.Id,
-            Name = model.Name,
-            CreatedAtUtc = model.CreatedAtUtc
-        });
+        return Results.Ok(new { Id = model.Id, Name = model.Name, CreatedAtUtc = model.CreatedAtUtc });
 
     }
 }

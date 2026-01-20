@@ -1,0 +1,35 @@
+﻿@using FE3.Api.Types
+@using MudBlazor
+@inject NavigationManager Nav
+
+<MudCard Outlined="true"Style=" cursor:pointer" @onclick="GoToModel">>
+
+    <MudCardMedia Image="@ThumbnailUrl" Height="180" />
+
+    <MudCardContent>
+        <MudText Typo="Typo.subtitle1">
+            @Model.Name
+        </MudText>
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @Model.CreatedAtUtc.ToLocalTime().ToString("yyyy-MM-dd")
+        </MudText>
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            @Model.Id
+        </MudText>
+    </MudCardContent>
+
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public ModelItem Model { get; set; } = default!;
+    [Parameter, EditorRequired] public Uri ApiBaseUri { get; set; } = default!;
+
+    private string ThumbnailUrl => $"{ApiBaseUri.ToString().TrimEnd('/')}/models/{Model.Id}/thumbnail";
+
+    private void GoToModel()
+    {
+        Nav.NavigateTo($"/model/{Model.Id}");
+    }
+}
