@@ -27,7 +27,7 @@ public sealed class ModelsApi(HttpClient api)
     
     public async Task SetAccessAsync(string modelId, bool isPrivate, CancellationToken ct = default)
     {
-        using var res = await api.PostAsync(
+        using var res = await api.PatchAsync(
             $"/models/{modelId}/access?access={isPrivate.ToString().ToLowerInvariant()}",
             content: null,
             ct);

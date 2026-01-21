@@ -1,4 +1,5 @@
-﻿@using System.Numerics
+﻿@using System.Diagnostics
+@using System.Numerics
 @using Ab4d.SharpEngine
 @using Ab4d.SharpEngine.Cameras
 @using Ab4d.SharpEngine.Common
@@ -93,7 +94,7 @@
     [Parameter] public string Class { get; set; } = "";
     [Parameter] public string Style { get; set; } = "";
 
-    [Parameter] public VoxelModel? Model { get; set; }
+    [Parameter] public GreedyVoxelModel? Model { get; set; }
 
     [Parameter] public float SpinSpeed { get; set; } = 35;
 
@@ -103,12 +104,9 @@
 
     SharpEngineSceneView _view = null!;
     TargetPositionCamera? _camera;
-    MeshModelNode? _node;
-    StandardMaterial? _mat;
     IJSObjectReference? _jsModule;
     GpuImage? _diffuseGpuImage;
     bool _ready;
-    bool _jsReady;
     string? _error;
 
     // ---- Control state (kept in sync with camera) ----
@@ -151,7 +149,7 @@
             _diffuseGpuImage = await TextureLoader.CreateTextureAsync("Atlas.png", scene);
 
             if (Model != null)
-                BuildMesh(Model);
+                AddVoxeldMesh(Model);
 
             _ready = true;
             StateHasChanged();
@@ -204,7 +202,7 @@
         {
             if (Model == null)
                 return;
-            BuildMesh(Model);
+            AddVoxeldMesh(Model);
 
             if (OnModelLoaded.HasDelegate)
                 await OnModelLoaded.InvokeAsync();
@@ -217,31 +215,16 @@
         StateHasChanged();
     }
 
-    void BuildMesh(VoxelModel model)
+    void AddVoxeldMesh(GreedyVoxelModel model)
     {
-        var mesh = model.BuildMesh();
-        _mat = new StandardMaterial
-        {
-            DiffuseTexture = _diffuseGpuImage
-        };
-        _node = new MeshModelNode(mesh, _mat);
-        _view.Scene.RootNode.Add(_node);
-
-        if (_camera != null)
-        {
-            _camera.Distance = _defaultDistance;
-
-            // keep UI in sync
-            _distance = _camera.Distance;
-        }
+        _view.Scene.RootNode.Add(model.BuildMesh(_diffuseGpuImage));
+        _camera.Distance = _defaultDistance;
+        _distance = _camera.Distance;
     }
 
     void ClearNode()
     {
-        if (_node == null) return;
-        _view.Scene.RootNode.Remove(_node);
-        _node.Dispose();
-        _node = null;
+        _view.Scene.RootNode.DisposeWithAllChildren(disposeMeshes: true, disposeMaterials: true);
     }
 
     // ---- Existing controls (now use _spinSpeed) ----

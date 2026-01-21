@@ -90,7 +90,7 @@
     string? _fileName;
 
     byte[]? _modelBytes;
-    VoxelModel? _model;
+    GreedyVoxelModel? _model;
 
     string? _thumbUrl;
     byte[]? _thumbPng;
@@ -126,7 +126,7 @@
         try
         {
             _model?.Dispose();
-            _model = VoxelModel.Deserialize(_modelBytes!);
+            _model = GreedyVoxelModel.Deserialize(_modelBytes!);
             _msg = "Preview ready. Click Capture.";
             _severity = Severity.Info;
         }

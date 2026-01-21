@@ -20,7 +20,7 @@ public static class VoxelModelsEndpoints
         group.MapGet("/{id}/thumbnail", GetModelThumbnail).AllowAnonymous().DisableAntiforgery();
         group.MapGet("/", GetAllModels).AllowAnonymous().DisableAntiforgery();
         group.MapGet("/{id}", GetModel).AllowAnonymous().DisableAntiforgery();
-        group.MapPatch("/{id}/{access:bool}", SetAccess).RequireAuthorization().DisableAntiforgery();
+        group.MapPatch("/{id}/access", SetAccess).RequireAuthorization().DisableAntiforgery();       
         group.MapDelete("/{id}", RemoveModel).RequireAuthorization().DisableAntiforgery();
         group.MapGet("/{id}/meta", GetModelMeta).AllowAnonymous().DisableAntiforgery();
     }
@@ -49,6 +49,7 @@ public static class VoxelModelsEndpoints
     private static async Task<IResult> SetAccess(ClaimsPrincipal user, PotDbContext db, string id, bool access)
     {
         var (ok, result, model) = await ModelsHelpers.VerifyModelPermission(user, db, id);
+        Console.WriteLine(ok);
 
         if (!ok) return result;
         

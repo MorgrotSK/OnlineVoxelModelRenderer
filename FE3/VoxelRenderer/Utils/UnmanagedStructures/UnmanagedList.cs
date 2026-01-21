@@ -7,8 +7,8 @@ using System.Runtime.InteropServices;
 public unsafe sealed class UnmanagedList<T> : IDisposable where T : unmanaged
 {
     private T* _buf; 
-    private int _cap, _count;
-    public int Count => _count;
+    private int _cap;
+    public int Count { get; private set; }
 
     public UnmanagedList(int cap = 4)
     {
@@ -21,7 +21,7 @@ public unsafe sealed class UnmanagedList<T> : IDisposable where T : unmanaged
         get
         {
             #if DEBUG
-            if ((uint)i >= (uint)_count) throw new IndexOutOfRangeException();
+            if ((uint)i >= (uint)Count) throw new IndexOutOfRangeException();
             #endif
             return ref _buf[i];
         }
@@ -30,24 +30,24 @@ public unsafe sealed class UnmanagedList<T> : IDisposable where T : unmanaged
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(in T value)
     {
-        if (_count == _cap) Grow(_cap << 1);
-        _buf[_count++] = value;
+        if (Count == _cap) Grow(_cap << 1);
+        _buf[Count++] = value;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int AddUninitialized()
     {
-        if (_count == _cap) Grow(_cap << 1);
-        return _count++;
+        if (Count == _cap) Grow(_cap << 1);
+        return Count++;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Clear() => _count = 0;
+    public void Clear() => Count = 0;
 
     private void Grow(int newCap)
     {
         T* nb = (T*)Marshal.AllocHGlobal(sizeof(T) * newCap);
-        Buffer.MemoryCopy(_buf, nb, sizeof(T) * newCap, sizeof(T) * _count);
+        Buffer.MemoryCopy(_buf, nb, sizeof(T) * newCap, sizeof(T) * Count);
         Marshal.FreeHGlobal((IntPtr)_buf);
         _buf = nb; _cap = newCap;
     }
@@ -56,6 +56,6 @@ public unsafe sealed class UnmanagedList<T> : IDisposable where T : unmanaged
     {
         if (_buf == null) return;
         Marshal.FreeHGlobal((IntPtr)_buf);
-        _buf = null; _cap = _count = 0;
+        _buf = null; _cap = Count = 0;
     }
 }
