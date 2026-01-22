@@ -30,10 +30,11 @@ public static class WorldEndpoints
             // Generate chunk if missing
             if (!File.Exists(path))
             {
-                var generator = new ChunkGenerator();
+                
+                ChunkGenerator.SetSeed(worldDir);
 
                 // NOTE: u,v are chunk coordinates, not block coordinates
-                var chunk = generator.GenerateChunk(new Vector2(u, v));
+                var chunk = ChunkGenerator.GenerateChunk(new Vector2(u, v));
 
                 byte[] data = chunk.Serialize();
                 chunk.Dispose();

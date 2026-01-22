@@ -9,7 +9,7 @@ public static class BlockDictionary
 
     static BlockDictionary()
     {
-        BlockTypes = new BlockTemplate[2];
+        BlockTypes = new BlockTemplate[5];
 
         BlockTypes[0] = new BlockTemplate
         {
@@ -24,6 +24,27 @@ public static class BlockDictionary
             IsTransparent = true,
             UvPattern = CalculateUvPattern(1, 0)
         };
+        
+        BlockTypes[2] = new BlockTemplate
+        {
+            Name = "Stone",
+            IsTransparent = false,
+            UvPattern = CalculateUvPattern(2, 0)
+        };
+        
+        BlockTypes[3] = new BlockTemplate
+        {
+            Name = "Grass",
+            IsTransparent = false,
+            UvPattern = CalculateUvPattern(3, 0)
+        };
+        BlockTypes[4] = new BlockTemplate
+        {
+            Name = "Dirt",
+            IsTransparent = false,
+            UvPattern = CalculateUvPattern(4, 0)
+        };
+        
     }
 
     public static ref readonly BlockTemplate Get(int id) => ref BlockTypes[id];

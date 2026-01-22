@@ -1,28 +1,31 @@
 ﻿using System.Numerics;
+using CastleServer.Chunks;
 using FE3.VoxelRenderer.Utils.Octree;
 using SharedClass.World;
 using SimplexNoise;
 
 namespace SharedClass;
 
-public class ChunkGenerator
+public static class ChunkGenerator
 {
-        private const short FloorLevel = 1;
+        private const short FloorLevel = 4;
 
-        private const byte TopBlock = 1;
-        private const byte SecondBlock = 1;
-        private const byte MainBlock = 1;
+        private const byte TopBlock = 4;
+        private const byte SecondBlock = 5;
+        private const byte MainBlock = 3;
 
         // Parameters for Simplex noise
-        private const float Scale = 0.5f;
-        private const float HeightMultiplier = 0.12f;
+        private const float Scale = 0.02f;
+        private const float HeightMultiplier = 0.022f;
+        
+        private static readonly CaveGenerator CaveGenerator = new(FloorLevel);
 
-        public ChunkGenerator()
+        public static void SetSeed(string seed)
         {
-            Noise.Seed = 2001;
+            Noise.Seed = seed.GetHashCode();
         }
 
-        public FlatOctree GenerateChunk(Vector2 position)
+        public static FlatOctree GenerateChunk(Vector2 position)
         {
             Vector2 cornerPosition = new Vector2(
                 position.X - ChunkProperty.Width / 2,
@@ -30,16 +33,18 @@ public class ChunkGenerator
             );
             
             FlatOctree chunk = new FlatOctree(depth: 6);
+            int baseX = (int)position.X * ChunkProperty.Width;
+            int baseZ = (int)position.Y * ChunkProperty.Width;
 
             for (int x = 0; x < ChunkProperty.Width; ++x)
             {
                 for (int z = 0; z < ChunkProperty.Width; ++z)
                 {
                     // Convert local coordinates to global coordinates
-                    int globalX = (int)cornerPosition.X + x;
-                    int globalZ = (int)cornerPosition.Y + z;
+                    int globalX = baseX + x;
+                    int globalZ = baseZ + z;
 
-                    int maxHeight = (int)this.GenerateHeight(globalX, globalZ) + FloorLevel;
+                    int maxHeight = (int)GenerateHeight(globalX, globalZ) + FloorLevel;
                     if (maxHeight > ChunkProperty.Height) maxHeight = ChunkProperty.Height - 5;
 
                     for (int y = 0; y < maxHeight; ++y)
@@ -59,19 +64,20 @@ public class ChunkGenerator
                     }
                 }
             }
+            
+           //CaveGenerator.GenerateCaves(chunk, cornerPosition);
 
             return chunk;
         }
 
 
-        private float GenerateHeight(int x, int z)
+        private static float GenerateHeight(int x, int z)
         {
-            // Use noise to generate height
-            float noiseValue = Noise.CalcPixel2D((int)(x * Scale), (int)(z * Scale), 0.025f);
+            float noiseValue = Noise.CalcPixel2D(x, z, Scale);
 
-            // Normalize and scale the noise value
-            return (noiseValue + 1) / 2 * HeightMultiplier;
+            return noiseValue * HeightMultiplier;
         }
+
     }
    
 

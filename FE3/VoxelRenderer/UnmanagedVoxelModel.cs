@@ -1,4 +1,5 @@
-﻿using FE3.VoxelRenderer.Utils;
+﻿using FE3.VoxelRenderer.Blocks;
+using FE3.VoxelRenderer.Utils;
 
 namespace FE3.VoxelRenderer;
 using Utils.Octree;
@@ -27,7 +28,8 @@ public struct UnmanagedVoxelModel(int depth, int initialCapacity) : IDisposable
         var model = this;
         _tree.TraverseLeaves((x, y, z, size, data) =>
         {
-            model.EmitLeafQuadsByAxis(x, y, z, size, data, lx, ly, lz);
+            ref readonly var block = ref BlockDictionary.Get(data - 1);
+            model.EmitLeafQuadsByAxis(x, y, z, size, data, block.IsTransparent, lx, ly, lz);
         });
         
         xQuads = lx;
@@ -35,7 +37,7 @@ public struct UnmanagedVoxelModel(int depth, int initialCapacity) : IDisposable
         zQuads = lz;
     }
 
-    private void EmitLeafQuadsByAxis(int x, int y, int z, int size, byte data,
+    private void EmitLeafQuadsByAxis(int x, int y, int z, int size, byte data, bool transparent,
         UnmanagedList<Quad> xQuads,
         UnmanagedList<Quad> yQuads,
         UnmanagedList<Quad> zQuads)
@@ -45,7 +47,7 @@ public struct UnmanagedVoxelModel(int depth, int initialCapacity) : IDisposable
             sbyte axis = (sbyte)((face >> 1) + 1);
             if ((face & 1) != 0) axis = (sbyte)-axis;
 
-            if (IsFaceFullyOccludedBySameData(x, y, z, size, data, axis))
+            if (IsFaceFullyOccluded(x, y, z, size, data, transparent, axis))
                 continue;
 
             int fx = x, fy = y, fz = z;
@@ -73,40 +75,93 @@ public struct UnmanagedVoxelModel(int depth, int initialCapacity) : IDisposable
         }
     }
 
-    private bool IsFaceFullyOccludedBySameData(int x, int y, int z, int size, byte data, sbyte axis)
+private bool IsFaceFullyOccluded(int x, int y, int z, int size, byte data, bool transparent, sbyte axis)
+{
+    int a = axis > 0 ? axis : -axis;
+    int nx = x, ny = y, nz = z;
+
+    if (a == 1) nx = axis > 0 ? x + size : x - size;
+    if (a == 2) ny = axis > 0 ? y + size : y - size;
+    if (a == 3) nz = axis > 0 ? z + size : z - size;
+
+    int step = 2;
+    
+    if (a == 1)
     {
-        int a = axis > 0 ? axis : -axis;
-        int nx = x, ny = y, nz = z;
-
-        if (a == 1) nx = axis > 0 ? x + size : x - size;
-        if (a == 2) ny = axis > 0 ? y + size : y - size;
-        if (a == 3) nz = axis > 0 ? z + size : z - size;
-        int step = 2; 
-
-        if (a == 1)
+        for (int yy = y; yy < y + size; yy += step)
+        for (int zz = z; zz < z + size; zz += step)
         {
-            for (int yy = y; yy < y + size; yy += step)
-                for (int zz = z; zz < z + size; zz+=step)
-                    if (_tree.Get(nx, yy, zz) != data)
-                        return false;
-        }
-        else if (a == 2)
-        {
-            for (int xx = x; xx < x + size; xx+=step)
-                for (int zz = z; zz < z + size; zz+=step)
-                    if (_tree.Get(xx, ny, zz) != data)
-                        return false;
-        }
-        else
-        {
-            for (int xx = x; xx < x + size; xx+=step)
-                for (int yy = y; yy < y + size; yy+=step)
-                    if (_tree.Get(xx, yy, nz) != data)
-                        return false;
-        }
+            byte nData = _tree.Get(nx, yy, zz);
 
-        return true;
+            if (nData == 0)
+                return false;
+
+            ref readonly var nBlock = ref BlockDictionary.Get(nData - 1);
+
+            if (transparent)
+            {
+                if (nData != data)
+                    return false;
+            }
+            else
+            {
+                if (nBlock.IsTransparent)
+                    return false;
+            }
+        }
     }
+    else if (a == 2)
+    {
+        for (int xx = x; xx < x + size; xx += step)
+        for (int zz = z; zz < z + size; zz += step)
+        {
+            byte nData = _tree.Get(xx, ny, zz);
+
+            if (nData == 0)
+                return false;
+
+            ref readonly var nBlock = ref BlockDictionary.Get(nData - 1);
+
+            if (transparent)
+            {
+                if (nData != data)
+                    return false;
+            }
+            else
+            {
+                if (nBlock.IsTransparent)
+                    return false;
+            }
+        }
+    }
+    else
+    {
+        for (int xx = x; xx < x + size; xx += step)
+        for (int yy = y; yy < y + size; yy += step)
+        {
+            byte nData = _tree.Get(xx, yy, nz);
+
+            if (nData == 0)
+                return false;
+
+            ref readonly var nBlock = ref BlockDictionary.Get(nData - 1);
+
+            if (transparent)
+            {
+                if (nData != data)
+                    return false;
+            }
+            else
+            {
+                if (nBlock.IsTransparent)
+                    return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 
     public byte[] Serialize() => _tree.Serialize();
 

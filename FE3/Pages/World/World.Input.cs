@@ -8,31 +8,31 @@ namespace FE3.Pages;
 public partial class World
 {
     // Player / camera
-    Vector3 _playerPos = new(0, 0, 0);
-    float _eyeHeight = 10f;
+    private Vector3 _playerPos = new(0, 0, 0);
+    private float _eyeHeight = 10f;
 
-    float _heading = 0f;   // yaw
-    float _attitude = 0f;  // pitch
+    private float _heading = 0f;
+    private float _attitude = 0f;
 
     // Tick / movement
-    int _tickMs = 16;            // ~60fps
-    float _moveSpeed = 12f;      // units / second
-    float _fastMult = 2.0f;      // Ctrl
-    float _slowMult = 0.45f;     // Alt (optional)
+    private int _tickMs = 20;
+    private float _moveSpeed = 24f;
+    private readonly float _fastMult = 4.0f;
+    private readonly float _slowMult = 0.45f;
 
     // Input
-    readonly HashSet<string> _keysDown = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> _keysDown = new(StringComparer.OrdinalIgnoreCase);
 
     // Pointer lock + deltas (from JS)
-    bool _pointerLocked;
-    float _pendingMouseDx;
-    float _pendingMouseDy;
+    private bool _pointerLocked;
+    private float _pendingMouseDx;
+    private float _pendingMouseDy;
 
     // Smoothing / feel
-    const float _mouseSensitivity = 0.10f; // degrees per pixel
-    float _smoothedDx;
-    float _smoothedDy;
-    const float _mouseSmoothing = 0.45f;   // 0..1
+    private const float _mouseSensitivity = 0.10f;
+    private float _smoothedDx;
+    private float _smoothedDy;
+    private const float _mouseSmoothing = 0.45f;
 
     void ApplyMouseLook(float dt)
     {

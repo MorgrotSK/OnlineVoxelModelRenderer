@@ -60,8 +60,8 @@ public partial class World : IAsyncDisposable
     // Lazy async streaming queue
     // ---------------------------
     readonly object _queueLock = new();
-    PriorityQueue<Int2, int> _loadQueue = new(); // min priority => nearest first
-    readonly HashSet<Int2> _queued = new();      // queued but not yet in-flight
+    PriorityQueue<Int2, int> _loadQueue = new();
+    readonly HashSet<Int2> _queued = new();
 
     // Cap concurrent loads (network + copy + deserialize)
     readonly SemaphoreSlim _loadSemaphore = new(initialCount: 2, maxCount: 2);
@@ -69,7 +69,7 @@ public partial class World : IAsyncDisposable
     Task[] _streamWorkers = Array.Empty<Task>();
 
     // Avoid spending too much time just enqueuing
-    const int EnqueueBudgetPerTick = 32;
+    const int EnqueueBudgetPerTick = 8;
 
     protected override void OnAfterRender(bool firstRender)
     {
@@ -267,15 +267,11 @@ public partial class World : IAsyncDisposable
 
     void LazyUnloadFarChunks()
     {
-        if (_rendered.Count == 0)
-            return;
-
         var keys = _rendered.Keys.ToArray();
         if (keys.Length == 0)
             return;
 
-        if (_unloadCursor >= keys.Length)
-            _unloadCursor = 0;
+        if (_unloadCursor >= keys.Length) _unloadCursor = 0;
 
         int budget = UnloadBudgetPerTick;
         int scanned = 0;
@@ -293,16 +289,17 @@ public partial class World : IAsyncDisposable
             // Only unload if outside unload radius
             if (!IsOutsideUnloadRadius(c))
                 continue;
-
-            // If currently loading, don't fight it
-            if (_loadInFlight.ContainsKey(c))
-                continue;
-
+            
             if (_world.UnloadChunk(c))
             {
                 if (_rendered.TryGetValue(c, out var node))
+                {
+                    Console.WriteLine($"[StreamWorker] unloading {_view.Scene.RootNode.Count} ");
+                    _view.Scene.RootNode.Remove(node);
                     node.Dispose();
-
+                    Console.WriteLine($"[StreamWorker] unloaded {_view.Scene.RootNode.Count} ");
+                }
+                
                 _rendered.Remove(c);
                 budget--;
             }
@@ -343,9 +340,7 @@ public partial class World : IAsyncDisposable
         // 2) drain meshes (GPU upload / scene-node creation)
         const int meshBudgetPerTick = 20;
 
-        _world.DrainCompletedMeshes(
-            meshBudgetPerTick,
-            GetChunkMaterial(),
+        _world.DrainCompletedMeshes(meshBudgetPerTick, GetChunkMaterial(),
             (chunk, node) =>
             {
                 node.Transform = new StandardTransform
