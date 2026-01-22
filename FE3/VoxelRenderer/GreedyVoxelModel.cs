@@ -36,6 +36,123 @@ public ref struct GreedyVoxelModel
         _model = ref model;
     }
 
+    public GreedyMeshData BuildMeshData()
+    {
+        _model.ExtractQuadsByAxis(out var xQuads, out var yQuads, out var zQuads);
+        var rects = new List<Quad>(256);
+        ProcessAxis(xQuads, QuadAxis.X, rects);
+        ProcessAxis(yQuads, QuadAxis.Y, rects);
+        ProcessAxis(zQuads, QuadAxis.Z, rects);
+        xQuads.Dispose();
+        yQuads.Dispose();
+        zQuads.Dispose();
+        
+        int rectCount = rects.Count;
+        var vertices = new List<PositionNormalTextureVertex>(rectCount * 4);
+        var indices  = new List<int>(rectCount * 6);
+         for (int i = 0; i < rectCount; i++)
+        {
+            var r = rects[i];
+
+            int x = r.Position.X;
+            int y = r.Position.Y;
+            int z = r.Position.Z;
+
+            int su = r.SizeU;
+            int sv = r.SizeV;
+
+            Vector3 normal;
+            Span<Vector3> c = stackalloc Vector3[4];
+
+            ref readonly var block = ref BlockDictionary.Get(r.BlockId - 1);
+            Float2x4 uv = block.UvPattern;
+
+            switch (r.Axis)
+            {
+                case -1:
+                    normal = -Vector3.UnitX;
+                    c[0] = new(x, y + sv, z);
+                    c[1] = new(x, y + sv, z + su);
+                    c[2] = new(x, y, z + su);
+                    c[3] = new(x, y, z);
+                    break;
+
+                case 1:
+                    normal = Vector3.UnitX;
+                    c[0] = new(x, y, z + su);
+                    c[1] = new(x, y + sv, z + su);
+                    c[2] = new(x, y + sv, z);
+                    c[3] = new(x, y, z);
+                    break;
+
+                case -2:
+                    normal = -Vector3.UnitY;
+                    c[0] = new(x, y, z);
+                    c[1] = new(x, y, z + sv);
+                    c[2] = new(x + su, y, z + sv);
+                    c[3] = new(x + su, y, z);
+                    break;
+
+                case 2:
+                    normal = Vector3.UnitY;
+                    c[0] = new(x, y, z);
+                    c[1] = new(x + su, y, z);
+                    c[2] = new(x + su, y, z + sv);
+                    c[3] = new(x, y, z + sv);
+                    break;
+
+                case -3:
+                    normal = -Vector3.UnitZ;
+                    c[0] = new(x + su, y, z);
+                    c[1] = new(x + su, y + sv, z);
+                    c[2] = new(x, y + sv, z);
+                    c[3] = new(x, y, z);
+                    break;
+
+                case 3:
+                    normal = Vector3.UnitZ;
+                    c[0] = new(x, y + sv, z);
+                    c[1] = new(x + su, y + sv, z);
+                    c[2] = new(x + su, y, z);
+                    c[3] = new(x, y, z);
+                    break;
+
+                default:
+                    continue;
+            }
+
+            int baseIndex = vertices.Count;
+
+            for (int j = 0; j < 4; j++)
+            {
+                vertices.Add(new PositionNormalTextureVertex(
+                    c[j],
+                    normal,
+                    new Vector2(uv[j].X, uv[j].Y)));
+            }
+
+            indices.Add(baseIndex + 0);
+            indices.Add(baseIndex + 2);
+            indices.Add(baseIndex + 1);
+            indices.Add(baseIndex + 0);
+            indices.Add(baseIndex + 3);
+            indices.Add(baseIndex + 2);
+
+            if (block.IsTransparent)
+            {
+                indices.Add(baseIndex + 0);
+                indices.Add(baseIndex + 1);
+                indices.Add(baseIndex + 2);
+                indices.Add(baseIndex + 0);
+                indices.Add(baseIndex + 2);
+                indices.Add(baseIndex + 3);
+            }
+        }
+         
+         return new GreedyMeshData(vertices.ToArray(), indices.ToArray());
+    }
+    
+
     public MeshModelNode BuildMesh(GpuImage? diffuseGpuImage)
     {
         var material = new StandardMaterial
@@ -53,7 +170,12 @@ public ref struct GreedyVoxelModel
         xQuads.Dispose();
         yQuads.Dispose();
         zQuads.Dispose();
-        return new MeshModelNode(BuildGreedyMesh(rects), material);
+        
+        var meshData = BuildMeshData();
+        
+        return new MeshModelNode(
+            new TriangleMesh<PositionNormalTextureVertex>(meshData.Vertices, meshData.Indices), 
+            material);
     }
     private static void ProcessAxis(UnmanagedList<Quad> axisQuads, QuadAxis axis, List<Quad> output)
     {
@@ -86,34 +208,14 @@ public ref struct GreedyVoxelModel
         }
     }
 
-    private static void ProcessSignedSlice(
-        UnmanagedList<Quad> quads,
-        QuadAxis axis,
-        int sliceCoord,
-        sbyte signedAxis,
-        List<Quad> output)
+    private static void ProcessSignedSlice(UnmanagedList<Quad> quads, QuadAxis axis, int sliceCoord, sbyte signedAxis, List<Quad> output)
     {
-        var mask = BuildSliceMask(
-            quads,
-            axis,
-            out int width,
-            out int height,
-            out int uMin,
-            out int vMin,
-            out int cellSize);
+        var mask = BuildSliceMask(quads, axis, out int width, out int height, out int uMin, out int vMin, out int cellSize);
 
         var maskRects = new List<MaskRect>(16);
         ExtractGreedyRectangles(mask, width, height, maskRects);
 
-        ProjectMaskRectsToSliceRects(
-            maskRects,
-            axis,
-            sliceCoord,
-            uMin,
-            vMin,
-            cellSize,
-            signedAxis,
-            output);
+        ProjectMaskRectsToSliceRects(maskRects, axis, sliceCoord, uMin, vMin, cellSize, signedAxis, output);
     }
 
     // ---------------- Mesh Build ----------------
