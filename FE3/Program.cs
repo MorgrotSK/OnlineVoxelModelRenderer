@@ -1,3 +1,4 @@
+using Ab4d.SharpEngine.WebGL.Services;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using FE3;
@@ -34,5 +35,7 @@ builder.Services.AddHttpClient("Api", c =>
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Api"));
 builder.Services.AddScoped<ModelsApi>();
 builder.Services.AddScoped<ModelsService>();
+builder.Services.AddScoped<WorldApi>();
+builder.Services.AddScoped<WorldService>();
 
 await builder.Build().RunAsync();

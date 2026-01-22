@@ -1,12 +1,9 @@
 ﻿@using System.Diagnostics
 @using System.Numerics
-@using Ab4d.SharpEngine
 @using Ab4d.SharpEngine.Cameras
 @using Ab4d.SharpEngine.Common
 @using Ab4d.SharpEngine.Core
 @using Ab4d.SharpEngine.Lights
-@using Ab4d.SharpEngine.Materials
-@using Ab4d.SharpEngine.SceneNodes
 @using Ab4d.SharpEngine.Utilities
 @using FE3.VoxelRenderer
 @using Colors = Ab4d.SharpEngine.Common.Colors
@@ -22,7 +19,10 @@
         }
 
         <div style="border-radius:14px; overflow:hidden; border:1px solid rgba(0,0,0,0.08)">
-            <SharpEngineSceneView @ref="_view" CanvasWidth="@CanvasWidth" CanvasHeight="@CanvasHeight" style="@($"width:100%; height:{CanvasHeight}px;")" />
+            <SharpEngineSceneView @ref="_view"
+                                  CanvasWidth="@CanvasWidth"
+                                  CanvasHeight="@CanvasHeight"
+                                  style="@($"width:100%; height:{CanvasHeight}px;")" />
         </div>
 
         @if (ShowControls)
@@ -30,7 +30,6 @@
             <MudStack Spacing="1">
                 <MudStack Row Spacing="1" AlignItems="AlignItems.Center">
                     <MudButton Variant="Variant.Outlined" OnClick="ResetView" Disabled="@(!_ready)">Reset</MudButton>
-
                     <MudButton OnClick="StartSpin" Disabled="@(!_ready)">Spin</MudButton>
                     <MudButton OnClick="StopSpin" Disabled="@(!_ready)">Stop</MudButton>
                 </MudStack>
@@ -38,8 +37,7 @@
                 <MudGrid Spacing="2">
                     <MudItem xs="12" sm="6" md="3">
                         <MudText Typo="Typo.caption">Distance</MudText>
-                        <MudSlider T="float"
-                                   Min="0.8f" Max="100f" Step="0.1f"
+                        <MudSlider T="float" Min="0.8f" Max="100f" Step="0.1f"
                                    Value="@_distance"
                                    ValueChanged="OnDistanceChanged"
                                    Disabled="@(!_ready)" />
@@ -47,8 +45,7 @@
 
                     <MudItem xs="12" sm="6" md="3">
                         <MudText Typo="Typo.caption">Heading</MudText>
-                        <MudSlider T="float"
-                                   Min="-180f" Max="180f" Step="1f"
+                        <MudSlider T="float" Min="-180f" Max="180f" Step="1f"
                                    Value="@_heading"
                                    ValueChanged="OnHeadingChanged"
                                    Disabled="@(!_ready)" />
@@ -56,8 +53,7 @@
 
                     <MudItem xs="12" sm="6" md="3">
                         <MudText Typo="Typo.caption">Attitude</MudText>
-                        <MudSlider T="float"
-                                   Min="-89f" Max="89f" Step="1f"
+                        <MudSlider T="float" Min="-89f" Max="89f" Step="1f"
                                    Value="@_attitude"
                                    ValueChanged="OnAttitudeChanged"
                                    Disabled="@(!_ready)" />
@@ -65,8 +61,7 @@
 
                     <MudItem xs="12" sm="6" md="3">
                         <MudText Typo="Typo.caption">Spin speed</MudText>
-                        <MudSlider T="float"
-                                   Min="0f" Max="180f" Step="1f"
+                        <MudSlider T="float" Min="0f" Max="180f" Step="1f"
                                    Value="@_spinSpeed"
                                    ValueChanged="OnSpinSpeedChanged"
                                    Disabled="@(!_ready)" />
@@ -94,7 +89,7 @@
     [Parameter] public string Class { get; set; } = "";
     [Parameter] public string Style { get; set; } = "";
 
-    [Parameter] public GreedyVoxelModel? Model { get; set; }
+    [Parameter] public UnmanagedVoxelModel? Model { get; set; }
 
     [Parameter] public float SpinSpeed { get; set; } = 35;
 
@@ -109,17 +104,15 @@
     bool _ready;
     string? _error;
 
-    // ---- Control state (kept in sync with camera) ----
     float _heading;
     float _attitude;
     float _distance;
     float _spinSpeed;
 
-    // Defaults for Reset
     const float _defaultHeading = 35;
     const float _defaultAttitude = -25;
     const float _defaultDistance = 5;
-    static readonly Vector3 _defaultTarget = new Vector3(0.5f);
+    static readonly Vector3 _defaultTarget = new(0.5f);
 
     protected override void OnAfterRender(bool first)
     {
@@ -132,24 +125,18 @@
         _distance = _defaultDistance;
         _spinSpeed = SpinSpeed;
 
-        // Not ready until GPU texture is loaded
         _ready = false;
-
         _view.SceneViewInitialized += OnSceneViewInitialized;
     }
 
-    
     async void OnSceneViewInitialized(object? sender, EventArgs e)
     {
         try
         {
-            var scene = _view.Scene;
-            
-            // GPU is guaranteed to exist here
-            _diffuseGpuImage = await TextureLoader.CreateTextureAsync("Atlas.png", scene);
+            _diffuseGpuImage = await TextureLoader.CreateTextureAsync("Atlas.png", _view.Scene);
 
             if (Model != null)
-                AddVoxeldMesh(Model);
+                AddVoxeldMesh(Model.Value);
 
             _ready = true;
             StateHasChanged();
@@ -161,21 +148,51 @@
         }
     }
 
-
     protected override void OnParametersSet()
     {
         if (_ready)
             _ = LoadAsync();
 
-        // Keep slider default aligned with parameter unless user already changed it.
         if (!_ready)
             _spinSpeed = SpinSpeed;
+    }
+
+    async Task LoadAsync()
+    {
+        ClearNode();
+        _error = null;
+
+        try
+        {
+            if (Model == null)
+                return;
+
+            AddVoxeldMesh(Model.Value);
+
+            if (OnModelLoaded.HasDelegate)
+                await OnModelLoaded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        StateHasChanged();
+    }
+
+    // 🔴 GREEDY STRUCT IS CREATED LOCALLY
+    void AddVoxeldMesh(UnmanagedVoxelModel model)
+    {
+        var greedy = new GreedyVoxelModel(ref model);
+        _view.Scene.RootNode.Add(greedy.BuildMesh(_diffuseGpuImage));
+        _camera!.Distance = _defaultDistance;
+        _distance = _camera.Distance;
     }
 
     void InitScene()
     {
         var scene = _view.Scene;
-        var view  = _view.SceneView;
+        var view = _view.SceneView;
 
         view.BackgroundColor = Colors.LightSkyBlue;
         scene.SetAmbientLight(0.25f);
@@ -193,51 +210,21 @@
         view.Camera = _camera;
     }
 
-    async Task LoadAsync()
-    {
-        ClearNode();
-        _error = null;
-
-        try
-        {
-            if (Model == null)
-                return;
-            AddVoxeldMesh(Model);
-
-            if (OnModelLoaded.HasDelegate)
-                await OnModelLoaded.InvokeAsync();
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
-
-        StateHasChanged();
-    }
-
-    void AddVoxeldMesh(GreedyVoxelModel model)
-    {
-        _view.Scene.RootNode.Add(model.BuildMesh(_diffuseGpuImage));
-        _camera.Distance = _defaultDistance;
-        _distance = _camera.Distance;
-    }
-
     void ClearNode()
     {
-        _view.Scene.RootNode.DisposeWithAllChildren(disposeMeshes: true, disposeMaterials: true);
+        _view.Scene.RootNode.DisposeWithAllChildren(
+            disposeMeshes: true,
+            disposeMaterials: true);
     }
 
-    // ---- Existing controls (now use _spinSpeed) ----
     public void StartSpin() => _camera?.StartRotation(_spinSpeed);
     public void StopSpin()  => _camera?.StopRotation();
-    
-    // ---- New basic controls ----
+
     void ResetView()
     {
         if (_camera == null) return;
 
         StopSpin();
-
         _heading = _defaultHeading;
         _attitude = _defaultAttitude;
         _distance = _defaultDistance;
@@ -250,45 +237,25 @@
         StateHasChanged();
     }
 
-    void OnDistanceChanged(float v)
-    {
-        _distance = v;
-        if (_camera != null) _camera.Distance = _distance;
-    }
-
-    void OnHeadingChanged(float v)
-    {
-        _heading = v;
-        if (_camera != null) _camera.Heading = _heading;
-    }
-
-    void OnAttitudeChanged(float v)
-    {
-        _attitude = v;
-        if (_camera != null) _camera.Attitude = _attitude;
-    }
-
-    void OnSpinSpeedChanged(float v)
-    {
-        _spinSpeed = v;
-    }
+    void OnDistanceChanged(float v) { _distance = v; if (_camera != null) _camera.Distance = v; }
+    void OnHeadingChanged(float v)  { _heading = v; if (_camera != null) _camera.Heading = v; }
+    void OnAttitudeChanged(float v) { _attitude = v; if (_camera != null) _camera.Attitude = v; }
+    void OnSpinSpeedChanged(float v) => _spinSpeed = v;
 
     public async Task CaptureAsync()
     {
-        if (_jsModule == null)
-            _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/CanvasTools.js");
+        _jsModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/CanvasTools.js");
         var url = await _jsModule.InvokeAsync<string?>("captureCanvasToPng", "sharpEngineCanvas_2");
-        
+
         if (OnThumbnailDataUrl.HasDelegate)
             await OnThumbnailDataUrl.InvokeAsync(url);
 
-        if (OnThumbnailPngBytes.HasDelegate)
+        if (OnThumbnailPngBytes.HasDelegate && url != null)
         {
             var base64 = url[(url.IndexOf(',') + 1)..];
             await OnThumbnailPngBytes.InvokeAsync(Convert.FromBase64String(base64));
         }
     }
-    
 
     public void Dispose()
     {

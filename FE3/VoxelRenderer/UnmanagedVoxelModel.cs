@@ -4,7 +4,7 @@ namespace FE3.VoxelRenderer;
 using Utils.Octree;
 using Utils.UnmanagedStructures;
 
-public sealed class UnmanagedVoxelModel(int depth, int initialCapacity) : IDisposable
+public struct UnmanagedVoxelModel(int depth, int initialCapacity) : IDisposable
 {
     private FlatOctree _tree = new(depth, initialCapacity);
 
@@ -23,12 +23,11 @@ public sealed class UnmanagedVoxelModel(int depth, int initialCapacity) : IDispo
         var lx = new UnmanagedList<Quad>(256);
         var ly = new UnmanagedList<Quad>(256);
         var lz = new UnmanagedList<Quad>(256);
-
-        var self = this;
-
+        
+        var model = this;
         _tree.TraverseLeaves((x, y, z, size, data) =>
         {
-            self.EmitLeafQuadsByAxis(x, y, z, size, data, lx, ly, lz);
+            model.EmitLeafQuadsByAxis(x, y, z, size, data, lx, ly, lz);
         });
         
         xQuads = lx;
@@ -79,28 +78,29 @@ public sealed class UnmanagedVoxelModel(int depth, int initialCapacity) : IDispo
         int a = axis > 0 ? axis : -axis;
         int nx = x, ny = y, nz = z;
 
-        if (a == 1) nx = axis > 0 ? x + size : x - 1;
-        if (a == 2) ny = axis > 0 ? y + size : y - 1;
-        if (a == 3) nz = axis > 0 ? z + size : z - 1;
+        if (a == 1) nx = axis > 0 ? x + size : x - size;
+        if (a == 2) ny = axis > 0 ? y + size : y - size;
+        if (a == 3) nz = axis > 0 ? z + size : z - size;
+        int step = 2; 
 
         if (a == 1)
         {
-            for (int yy = y; yy < y + size; yy++)
-                for (int zz = z; zz < z + size; zz++)
+            for (int yy = y; yy < y + size; yy += step)
+                for (int zz = z; zz < z + size; zz+=step)
                     if (_tree.Get(nx, yy, zz) != data)
                         return false;
         }
         else if (a == 2)
         {
-            for (int xx = x; xx < x + size; xx++)
-                for (int zz = z; zz < z + size; zz++)
+            for (int xx = x; xx < x + size; xx+=step)
+                for (int zz = z; zz < z + size; zz+=step)
                     if (_tree.Get(xx, ny, zz) != data)
                         return false;
         }
         else
         {
-            for (int xx = x; xx < x + size; xx++)
-                for (int yy = y; yy < y + size; yy++)
+            for (int xx = x; xx < x + size; xx+=step)
+                for (int yy = y; yy < y + size; yy+=step)
                     if (_tree.Get(xx, yy, nz) != data)
                         return false;
         }

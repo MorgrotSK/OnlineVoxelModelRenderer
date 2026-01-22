@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SEM-Drahos", "SEM-Drahos\SE
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FE3", "FE3\FE3.csproj", "{5DBEC79C-B5DF-49F7-938F-A35454D1834A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharedLib", "SharedLib\SharedLib.csproj", "{CA524DBD-2564-4F06-A26C-0F95253C5DAB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{5DBEC79C-B5DF-49F7-938F-A35454D1834A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5DBEC79C-B5DF-49F7-938F-A35454D1834A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5DBEC79C-B5DF-49F7-938F-A35454D1834A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA524DBD-2564-4F06-A26C-0F95253C5DAB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA524DBD-2564-4F06-A26C-0F95253C5DAB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA524DBD-2564-4F06-A26C-0F95253C5DAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA524DBD-2564-4F06-A26C-0F95253C5DAB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

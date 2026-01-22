@@ -69,5 +69,6 @@ app.UseAuthorization();
 /* ---------- ENDPOINTS ---------- */
 app.MapAuthEndpoints();
 app.MapModelEndpoints();
+app.MapWorldEndpoints();
 
 app.Run();

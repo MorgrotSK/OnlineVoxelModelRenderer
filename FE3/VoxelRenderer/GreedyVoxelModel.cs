@@ -11,11 +11,17 @@ using FE3.VoxelRenderer.Utils.UnmanagedStructures;
 
 namespace FE3.VoxelRenderer;
 
-public sealed class GreedyVoxelModel : IDisposable
+public ref struct GreedyVoxelModel
 {
-    private readonly UnmanagedVoxelModel _model;
+    private ref UnmanagedVoxelModel _model;
+
     private enum QuadAxis : byte { X, Y, Z }
-    private struct MaskCell { public ushort BlockId; }
+
+    private struct MaskCell
+    {
+        public ushort BlockId;
+    }
+
     private struct MaskRect
     {
         public int U;
@@ -25,17 +31,18 @@ public sealed class GreedyVoxelModel : IDisposable
         public ushort BlockId;
     }
 
-    public GreedyVoxelModel(UnmanagedVoxelModel model)
+    public GreedyVoxelModel(ref UnmanagedVoxelModel model)
     {
-        _model = model;
+        _model = ref model;
     }
 
-    public MeshModelNode BuildMesh(GpuImage? _diffuseGpuImage)
+    public MeshModelNode BuildMesh(GpuImage? diffuseGpuImage)
     {
-        StandardMaterial mat = new StandardMaterial
+        var material = new StandardMaterial
         {
-            DiffuseTexture = _diffuseGpuImage
-        };;
+            DiffuseTexture = diffuseGpuImage
+        };
+
         _model.ExtractQuadsByAxis(out var xQuads, out var yQuads, out var zQuads);
         
         var rects = new List<Quad>(256);
@@ -43,14 +50,11 @@ public sealed class GreedyVoxelModel : IDisposable
         ProcessAxis(xQuads, QuadAxis.X, rects);
         ProcessAxis(yQuads, QuadAxis.Y, rects);
         ProcessAxis(zQuads, QuadAxis.Z, rects);
-
         xQuads.Dispose();
         yQuads.Dispose();
         zQuads.Dispose();
-        
-        return new MeshModelNode(BuildGreedyMesh(rects), mat);
+        return new MeshModelNode(BuildGreedyMesh(rects), material);
     }
-
     private static void ProcessAxis(UnmanagedList<Quad> axisQuads, QuadAxis axis, List<Quad> output)
     {
         var slices = GroupQuadsIntoSlices(axisQuads, axis);
@@ -81,35 +85,45 @@ public sealed class GreedyVoxelModel : IDisposable
             sliceQuads.Dispose();
         }
     }
-    
-    public void Dispose()
-    {
-        _model.Dispose();
-    }
-    
-    public static GreedyVoxelModel Deserialize(ReadOnlySpan<byte> data)
-    {
-        var core = UnmanagedVoxelModel.Deserialize(data);
-        var model = new GreedyVoxelModel(core);
-        return model;
-    }
 
-    private static void ProcessSignedSlice(UnmanagedList<Quad> quads, QuadAxis axis, int sliceCoord, sbyte signedAxis, List<Quad> output)
+    private static void ProcessSignedSlice(
+        UnmanagedList<Quad> quads,
+        QuadAxis axis,
+        int sliceCoord,
+        sbyte signedAxis,
+        List<Quad> output)
     {
-        var mask = BuildSliceMask(quads, axis, out int width, out int height, out int uMin, out int vMin, out int cellSize);
+        var mask = BuildSliceMask(
+            quads,
+            axis,
+            out int width,
+            out int height,
+            out int uMin,
+            out int vMin,
+            out int cellSize);
 
         var maskRects = new List<MaskRect>(16);
         ExtractGreedyRectangles(mask, width, height, maskRects);
 
-        ProjectMaskRectsToSliceRects(maskRects, axis, sliceCoord, uMin, vMin, cellSize, signedAxis, output);
+        ProjectMaskRectsToSliceRects(
+            maskRects,
+            axis,
+            sliceCoord,
+            uMin,
+            vMin,
+            cellSize,
+            signedAxis,
+            output);
     }
+
+    // ---------------- Mesh Build ----------------
 
     public TriangleMesh<PositionNormalTextureVertex> BuildGreedyMesh(List<Quad> rects)
     {
         int rectCount = rects.Count;
 
         var vertices = new List<PositionNormalTextureVertex>(rectCount * 4);
-        var indices = new List<int>(rectCount * 6);
+        var indices  = new List<int>(rectCount * 6);
 
         for (int i = 0; i < rectCount; i++)
         {
@@ -132,50 +146,50 @@ public sealed class GreedyVoxelModel : IDisposable
             {
                 case -1:
                     normal = -Vector3.UnitX;
-                    c[0] = new Vector3(x, y + sv, z);
-                    c[1] = new Vector3(x, y + sv, z + su);
-                    c[2] = new Vector3(x, y, z + su);
-                    c[3] = new Vector3(x, y, z);
+                    c[0] = new(x, y + sv, z);
+                    c[1] = new(x, y + sv, z + su);
+                    c[2] = new(x, y, z + su);
+                    c[3] = new(x, y, z);
                     break;
 
                 case 1:
                     normal = Vector3.UnitX;
-                    c[0] = new Vector3(x, y, z + su);
-                    c[1] = new Vector3(x, y + sv, z + su);
-                    c[2] = new Vector3(x, y + sv, z);
-                    c[3] = new Vector3(x, y, z);
+                    c[0] = new(x, y, z + su);
+                    c[1] = new(x, y + sv, z + su);
+                    c[2] = new(x, y + sv, z);
+                    c[3] = new(x, y, z);
                     break;
 
                 case -2:
                     normal = -Vector3.UnitY;
-                    c[0] = new Vector3(x, y, z);
-                    c[1] = new Vector3(x, y, z + sv);
-                    c[2] = new Vector3(x + su, y, z + sv);
-                    c[3] = new Vector3(x + su, y, z);
+                    c[0] = new(x, y, z);
+                    c[1] = new(x, y, z + sv);
+                    c[2] = new(x + su, y, z + sv);
+                    c[3] = new(x + su, y, z);
                     break;
 
                 case 2:
                     normal = Vector3.UnitY;
-                    c[0] = new Vector3(x, y, z);
-                    c[1] = new Vector3(x + su, y, z);
-                    c[2] = new Vector3(x + su, y, z + sv);
-                    c[3] = new Vector3(x, y, z + sv);
+                    c[0] = new(x, y, z);
+                    c[1] = new(x + su, y, z);
+                    c[2] = new(x + su, y, z + sv);
+                    c[3] = new(x, y, z + sv);
                     break;
 
                 case -3:
                     normal = -Vector3.UnitZ;
-                    c[0] = new Vector3(x + su, y, z);
-                    c[1] = new Vector3(x + su, y + sv, z);
-                    c[2] = new Vector3(x, y + sv, z);
-                    c[3] = new Vector3(x, y, z);
+                    c[0] = new(x + su, y, z);
+                    c[1] = new(x + su, y + sv, z);
+                    c[2] = new(x, y + sv, z);
+                    c[3] = new(x, y, z);
                     break;
 
                 case 3:
                     normal = Vector3.UnitZ;
-                    c[0] = new Vector3(x, y + sv, z);
-                    c[1] = new Vector3(x + su, y + sv, z);
-                    c[2] = new Vector3(x + su, y, z);
-                    c[3] = new Vector3(x, y, z);
+                    c[0] = new(x, y + sv, z);
+                    c[1] = new(x + su, y + sv, z);
+                    c[2] = new(x + su, y, z);
+                    c[3] = new(x, y, z);
                     break;
 
                 default:
@@ -189,8 +203,7 @@ public sealed class GreedyVoxelModel : IDisposable
                 vertices.Add(new PositionNormalTextureVertex(
                     c[j],
                     normal,
-                    new Vector2(uv[j].X, uv[j].Y)
-                ));
+                    new Vector2(uv[j].X, uv[j].Y)));
             }
 
             indices.Add(baseIndex + 0);
@@ -215,7 +228,7 @@ public sealed class GreedyVoxelModel : IDisposable
             vertices.ToArray(),
             indices.ToArray());
     }
-
+    
     private static Dictionary<int, UnmanagedList<Quad>> GroupQuadsIntoSlices(UnmanagedList<Quad> quads, QuadAxis axis)
     {
         var slices = new Dictionary<int, UnmanagedList<Quad>>(32);
@@ -246,7 +259,7 @@ public sealed class GreedyVoxelModel : IDisposable
         out int vMin,
         out int cellSize)
     {
-        cellSize = sliceQuads[0].SizeV;
+        cellSize = 2;
 
         int uMax = int.MinValue;
         int vMax = int.MinValue;
@@ -267,7 +280,7 @@ public sealed class GreedyVoxelModel : IDisposable
             if (vEnd > vMax) vMax = vEnd;
         }
 
-        width = (uMax - uMin) / cellSize;
+        width  = (uMax - uMin) / cellSize;
         height = (vMax - vMin) / cellSize;
 
         var mask = new MaskCell[width, height];
@@ -280,11 +293,12 @@ public sealed class GreedyVoxelModel : IDisposable
             int uStart = (u0 - uMin) / cellSize;
             int vStart = (v0 - vMin) / cellSize;
 
-            int span = q.SizeV / cellSize;
+            int uSpan = q.SizeU / cellSize;
+            int vSpan = q.SizeV / cellSize;
 
-            for (int du = 0; du < span; du++)
-                for (int dv = 0; dv < span; dv++)
-                    mask[uStart + du, vStart + dv].BlockId = q.BlockId;
+            for (int du = 0; du < uSpan; du++)
+            for (int dv = 0; dv < vSpan; dv++)
+                mask[uStart + du, vStart + dv].BlockId = q.BlockId;
         }
 
         return mask;
@@ -354,7 +368,7 @@ public sealed class GreedyVoxelModel : IDisposable
             {
                 QuadAxis.X => new Int3(sliceCoord, v, u),
                 QuadAxis.Y => new Int3(u, sliceCoord, v),
-                _ => new Int3(u, v, sliceCoord)
+                _          => new Int3(u, v, sliceCoord)
             };
 
             output.Add(new Quad
@@ -373,34 +387,20 @@ public sealed class GreedyVoxelModel : IDisposable
     {
         switch (axis)
         {
-            case QuadAxis.X:
-                u = q.Position.Z;
-                v = q.Position.Y;
-                break;
-            case QuadAxis.Y:
-                u = q.Position.X;
-                v = q.Position.Z;
-                break;
-            default:
-                u = q.Position.X;
-                v = q.Position.Y;
-                break;
+            case QuadAxis.X: u = q.Position.Z; v = q.Position.Y; break;
+            case QuadAxis.Y: u = q.Position.X; v = q.Position.Z; break;
+            default:         u = q.Position.X; v = q.Position.Y; break;
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int GetSliceCoord(in Quad q, QuadAxis axis)
     {
-        int p = axis switch
+        return axis switch
         {
             QuadAxis.X => q.Position.X,
             QuadAxis.Y => q.Position.Y,
-            _ => q.Position.Z
+            _          => q.Position.Z
         };
-
-        return p & ~(q.SizeV - 1);
     }
-    
 }
-
-
