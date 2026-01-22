@@ -1,0 +1,14 @@
+﻿@page "/world/{WorldId}"
+@namespace FE3.Pages
+@inject Api.WorldApi WorldApi
+@inject IJSRuntime Js
+
+
+<div class="scene-host"
+     @ref="_inputHost"
+     tabindex="0"
+     @onkeydown="OnKeyDown"
+     @onkeyup="OnKeyUp"
+     style="width:100%; height:100vh; overflow:hidden; outline:none;">
+    <SharpEngineSceneView @ref="_view" CanvasWidth="1600" CanvasHeight="900" style="width:100%; height:100%;" />
+</div>

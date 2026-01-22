@@ -11,7 +11,7 @@ using FE3.VoxelRenderer.Utils;
 
 namespace FE3.VoxelRenderer.VoxelWorld;
 
-public sealed class VoxelWorld : IDisposable
+public sealed class VoxelWorld : IAsyncDisposable
 {
     public static readonly int ChunkSize = 32;
 
@@ -234,9 +234,9 @@ public sealed class VoxelWorld : IDisposable
         _chunkRenderCts.Clear();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        StopRenderingAsync().GetAwaiter().GetResult();
+        await StopRenderingAsync();
         _renderCts.Dispose();
 
         foreach (var model in _chunks.Values)
@@ -244,6 +244,7 @@ public sealed class VoxelWorld : IDisposable
 
         _chunks.Clear();
     }
+
 }
 
 public delegate Task<UnmanagedVoxelModel> ChunkLoader(Int2 chunk, CancellationToken ct);

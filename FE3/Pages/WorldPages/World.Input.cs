@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Components;
 
 namespace FE3.Pages;
 
-public partial class World
+public partial class WorldPage
 {
     // Player / camera
     private Vector3 _playerPos = new(0, 0, 0);

@@ -1,0 +1,29 @@
+﻿@page "/worldCreatorPage"
+@namespace FE3.Pages.WorldPages
+
+<MudContainer MaxWidth="MaxWidth.False" Class="fill-screen">
+    <MudStack Class="center-stack" Spacing="4">
+
+        <MudText Typo="Typo.h3" Align="Align.Center">
+            Create or Enter World
+        </MudText>
+
+        <MudTextField @bind-Value="WorldId"
+                      Placeholder="Enter World ID"
+                      Variant="Variant.Outlined"
+                      FullWidth="true"
+                      Immediate="true"
+                      Class="world-input"
+                      OnKeyDown="HandleKeyDown" />
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Size="Size.Large"
+                   Disabled="@IsGenerateDisabled"
+                   Class="generate-button pulse"
+                   OnClick="Generate">
+            Generate
+        </MudButton>
+
+    </MudStack>
+</MudContainer>

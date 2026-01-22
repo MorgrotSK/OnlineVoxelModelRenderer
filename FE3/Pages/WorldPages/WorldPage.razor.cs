@@ -17,7 +17,7 @@ using Colors = Ab4d.SharpEngine.Common.Colors;
 
 namespace FE3.Pages;
 
-public partial class World : IAsyncDisposable
+public partial class WorldPage : IAsyncDisposable
 {
     [Parameter] public string WorldId { get; set; } = null!;
 
@@ -33,7 +33,7 @@ public partial class World : IAsyncDisposable
     Task _loopTask = Task.CompletedTask;
 
     ElementReference _inputHost;
-    DotNetObjectReference<World> _dotnetRef = null!;
+    DotNetObjectReference<WorldPage> _dotnetRef = null!;
     IJSObjectReference _jsModule = null!;
 
     // Streaming
@@ -96,7 +96,7 @@ public partial class World : IAsyncDisposable
         _world.StartRenderWorkers();
 
         _dotnetRef = DotNetObjectReference.Create(this);
-        _jsModule = await JS.InvokeAsync<IJSObjectReference>("import", "./worldInput.js");
+        _jsModule = await Js.InvokeAsync<IJSObjectReference>("import", "./worldInput.js");
         await _jsModule.InvokeVoidAsync("init", _inputHost, _dotnetRef);
 
         _cts = new CancellationTokenSource();
@@ -409,7 +409,7 @@ public partial class World : IAsyncDisposable
         _dotnetRef.Dispose();
 
         ClearSceneRoot();
-        _world.Dispose();
+        await _world.DisposeAsync();
         _view.Dispose();
 
         _cts.Dispose();
