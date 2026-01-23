@@ -1,5 +1,4 @@
-﻿// VoxelWorld.cs
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
@@ -7,13 +6,14 @@ using Ab4d.SharpEngine.Common;
 using Ab4d.SharpEngine.Materials;
 using Ab4d.SharpEngine.Meshes;
 using Ab4d.SharpEngine.SceneNodes;
-using FE3.VoxelRenderer.Utils;
+using FE3.VoxelRenderer.Utils.Types;
+using SharedClass.World;
 
-namespace FE3.VoxelRenderer.VoxelWorld;
+namespace FE3.VoxelRenderer.WorldRenderer;
 
 public sealed class VoxelWorld : IAsyncDisposable
 {
-    public static readonly int ChunkSize = 32;
+    public static readonly int ChunkSize = ChunkProperty.Width;
 
     private readonly Dictionary<Int2, UnmanagedVoxelModel> _chunks = new();
     private readonly ChunkLoader _loader;

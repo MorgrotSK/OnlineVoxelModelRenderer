@@ -1,7 +1,6 @@
-﻿using System.Runtime.CompilerServices;
-using FE3.VoxelRenderer.Utils;
+﻿namespace FE3.VoxelRenderer.Utils.Types;
 
-public struct Float2x4
+public struct Float2X4
 {
     public Float2 TL;
     public Float2 TR;

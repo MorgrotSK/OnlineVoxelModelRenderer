@@ -88,7 +88,6 @@
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
 
-            // 🔴 DESERIALIZE THE OWNER
             _model = UnmanagedVoxelModel.Deserialize(ms.ToArray());
         }
         catch (Exception ex)

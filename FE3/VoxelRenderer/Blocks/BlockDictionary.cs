@@ -1,10 +1,11 @@
 ﻿using FE3.VoxelRenderer.Utils;
+using FE3.VoxelRenderer.Utils.Types;
+
 namespace FE3.VoxelRenderer.Blocks;
 
 public static class BlockDictionary
 {
     private static readonly BlockTemplate[] BlockTypes;
-    public static int Length => BlockTypes.Length;
     private const float TileSize = 1.0f / 16.0f;
 
     static BlockDictionary()
@@ -49,7 +50,7 @@ public static class BlockDictionary
 
     public static ref readonly BlockTemplate Get(int id) => ref BlockTypes[id];
     
-    private static Float2x4 CalculateUvPattern(int tileX, int tileY)
+    private static Float2X4 CalculateUvPattern(int tileX, int tileY)
     {
         float u0 = tileX * TileSize;
         float u1 = u0 + TileSize;
@@ -57,7 +58,7 @@ public static class BlockDictionary
         float v0 = tileY * TileSize;
         float v1 = v0 + TileSize;
 
-        return new Float2x4
+        return new Float2X4
         {
             TL = new Float2(u0, v0),
             TR = new Float2(u1, v0),

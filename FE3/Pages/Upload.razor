@@ -9,7 +9,6 @@
 
     <MudGrid Spacing="3">
 
-        <!-- LEFT: Details + Actions -->
         <MudItem xs="12" md="4">
             <MudPaper Class="pa-4" Elevation="1">
                 <MudStack Spacing="3">
@@ -114,8 +113,6 @@
         _model = null;
 
         var file = e.File;
-        if (file == null) return;
-
         _fileName = file.Name;
 
         await using var s = file.OpenReadStream(50 * 1024 * 1024);

@@ -1,4 +1,6 @@
-﻿using FE3.VoxelRenderer.Utils.UnmanagedStructures;
+﻿using SharedClass.Octree;
+using SharedClass.UnmanagedStructures;
+using SharedClass.World;
 
 namespace FE3.VoxelRenderer.Utils.Octree;
 
@@ -11,8 +13,6 @@ public struct FlatOctree : IDisposable
     private UnmanagedArray<OctreeNode> _nodes;
     private int _root;
     
-    public int Depth => _depth;
-    public int NodeCount => _nodes.Count;
 
     public FlatOctree(int depth, int cap = 128)
     {
@@ -25,7 +25,7 @@ public struct FlatOctree : IDisposable
     public void Dispose() => _nodes.Dispose();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool InBounds(int x, int y, int z) => (uint)x < 64 && (uint)y < 64 && (uint)z < 64;
+    private static bool InBounds(int x, int y, int z) => (uint)x < ChunkProperty.Width && (uint)y <  ChunkProperty.Height && (uint)z < ChunkProperty.Width;
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public byte Get(int x, int y, int z)

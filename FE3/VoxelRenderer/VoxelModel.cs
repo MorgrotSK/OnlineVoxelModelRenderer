@@ -2,8 +2,8 @@
 using Ab4d.SharpEngine.Common;
 using Ab4d.SharpEngine.Meshes;
 using FE3.VoxelRenderer.Blocks;
-using FE3.VoxelRenderer.Utils;
-using FE3.VoxelRenderer.Utils.UnmanagedStructures;
+using FE3.VoxelRenderer.Utils.Types;
+using SharedClass.UnmanagedStructures;
 
 namespace FE3.VoxelRenderer;
 
@@ -66,7 +66,7 @@ public sealed class VoxelModel : IDisposable
             Span<Vector3> c = stackalloc Vector3[4];
 
             ref readonly var block = ref BlockDictionary.Get(q.BlockId - 1);
-            Float2x4 uv = block.UvPattern;
+            Float2X4 uv = block.UvPattern;
 
             switch (q.Axis)
             {

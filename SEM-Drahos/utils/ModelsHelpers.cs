@@ -1,10 +1,7 @@
 ﻿using System.Security.Claims;
 using SEM_Drahos.Data;
-using SEM_Drahos.Data.entities;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Microsoft.EntityFrameworkCore;
-using MongoDB.Bson;
 
 
 namespace SEM_Drahos.utils;

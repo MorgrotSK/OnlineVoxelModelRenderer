@@ -3,26 +3,26 @@
 <MudPaper Class="pa-6" MaxWidth="400px">
     <MudText Typo="Typo.h5">Login</MudText>
 
-    <MudTextField @bind-Value="userName" Label="Username" />
-    <MudTextField @bind-Value="password" Label="Password" InputType="InputType.Password" />
+    <MudTextField @bind-Value="_userName" Label="Username" />
+    <MudTextField @bind-Value="_password" Label="Password" InputType="InputType.Password" />
 
     <MudButton OnClick="Submit" Color="Color.Primary">Login</MudButton>
 
-    @if (error != null)
+    @if (_error != null)
     {
-        <MudAlert Severity="Severity.Error">@error</MudAlert>
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
     }
 </MudPaper>
 
 @code {
-    string userName = "";
-    string password = "";
-    string? error;
+    string _userName = "";
+    string _password = "";
+    string? _error;
 
     async Task Submit()
     {
-        if (!await Auth.Login(userName, password))
-            error = "Invalid credentials";
+        if (!await Auth.Login(_userName, _password))
+            _error = "Invalid credentials";
         else
             Nav.NavigateTo("/");
     }

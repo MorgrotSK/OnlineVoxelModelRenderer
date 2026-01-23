@@ -2,7 +2,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Net.Http.Headers;
 using MongoDB.Bson;
 using SEM_Drahos.Data.entities;
 using SEM_Drahos.utils;

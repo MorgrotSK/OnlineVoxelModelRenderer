@@ -1,8 +1,7 @@
-﻿namespace FE3.VoxelRenderer.Utils.UnmanagedStructures;
-
-using System;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
+namespace SharedClass.UnmanagedStructures;
 
 public unsafe sealed class UnmanagedList<T> : IDisposable where T : unmanaged
 {

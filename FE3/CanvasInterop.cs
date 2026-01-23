@@ -8,6 +8,9 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
+ 
+//<!-- 95% tohto kodu je z internetu-->
+
 
 // IMPORTANT:
 // If you change this namespace, then you also need to change the code in sharp-engine.js: interop = exports.Ab4d.SharpEngine.WebGL.CanvasInterop;

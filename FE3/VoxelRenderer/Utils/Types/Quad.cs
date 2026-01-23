@@ -1,4 +1,4 @@
-﻿namespace FE3.VoxelRenderer.Utils;
+﻿namespace FE3.VoxelRenderer.Utils.Types;
 
 public struct Quad
 {

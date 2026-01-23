@@ -6,8 +6,8 @@ using Ab4d.SharpEngine.Materials;
 using Ab4d.SharpEngine.Meshes;
 using Ab4d.SharpEngine.SceneNodes;
 using FE3.VoxelRenderer.Blocks;
-using FE3.VoxelRenderer.Utils;
-using FE3.VoxelRenderer.Utils.UnmanagedStructures;
+using FE3.VoxelRenderer.Utils.Types;
+using SharedClass.UnmanagedStructures;
 
 namespace FE3.VoxelRenderer;
 
@@ -65,7 +65,7 @@ public ref struct GreedyVoxelModel
             Span<Vector3> c = stackalloc Vector3[4];
 
             ref readonly var block = ref BlockDictionary.Get(r.BlockId - 1);
-            Float2x4 uv = block.UvPattern;
+            Float2X4 uv = block.UvPattern;
 
             switch (r.Axis)
             {
@@ -242,7 +242,7 @@ public ref struct GreedyVoxelModel
             Span<Vector3> c = stackalloc Vector3[4];
 
             ref readonly var block = ref BlockDictionary.Get(r.BlockId - 1);
-            Float2x4 uv = block.UvPattern;
+            Float2X4 uv = block.UvPattern;
 
             switch (r.Axis)
             {

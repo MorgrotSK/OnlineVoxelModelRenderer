@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using System.Security.Claims;
 using SEM_Drahos.Data;
-using SEM_Drahos.utils;
 using SharedClass;
 
 namespace SEM_Drahos.Endpoints;

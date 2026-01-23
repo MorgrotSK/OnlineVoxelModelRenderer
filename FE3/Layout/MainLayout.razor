@@ -29,17 +29,13 @@
                     @auth.User.Identity!.Name
                 </MudText>
 
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Inherit"
-                           OnClick="@Logout">
+                <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="@Logout">
                     Logout
                 </MudButton>
             </Authorized>
 
             <NotAuthorized>
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Inherit"
-                           Href="/login">
+                <MudButton Variant="Variant.Text" Color="Color.Inherit" Href="/login">
                     Login
                 </MudButton>
             </NotAuthorized>
@@ -48,7 +44,7 @@
 
     <AuthorizeView>
         <Authorized>
-            <MudDrawer @bind-Open="_drawerOpen"ClipMode="DrawerClipMode.Always" Elevation="2">
+            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
                 <NavMenu />
             </MudDrawer>
         </Authorized>
@@ -85,11 +81,9 @@
         };
     }
 
-    private void DrawerToggle()
-        => _drawerOpen = !_drawerOpen;
+    private void DrawerToggle() => _drawerOpen = !_drawerOpen;
 
-    private void DarkModeToggle()
-        => _isDarkMode = !_isDarkMode;
+    private void DarkModeToggle() => _isDarkMode = !_isDarkMode;
 
     private async Task Logout()
     {
@@ -136,7 +130,5 @@
         OverlayLight = "#1e1e2d80",
     };
 
-    public string DarkLightModeButtonIcon => _isDarkMode
-        ? Icons.Material.Rounded.AutoMode
-        : Icons.Material.Outlined.DarkMode;
+    public string DarkLightModeButtonIcon => _isDarkMode ? Icons.Material.Rounded.AutoMode : Icons.Material.Outlined.DarkMode;
 }

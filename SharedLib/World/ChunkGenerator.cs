@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using CastleServer.Chunks;
 using FE3.VoxelRenderer.Utils.Octree;
 using SharedClass.World;
 using SimplexNoise;
@@ -8,7 +7,7 @@ namespace SharedClass;
 
 public static class ChunkGenerator
 {
-        private const short FloorLevel = 4;
+        private const short FloorLevel = 12;
 
         private const byte TopBlock = 4;
         private const byte SecondBlock = 5;
@@ -17,8 +16,7 @@ public static class ChunkGenerator
         // Parameters for Simplex noise
         private const float Scale = 0.02f;
         private const float HeightMultiplier = 0.022f;
-        
-        private static readonly CaveGenerator CaveGenerator = new(FloorLevel);
+    
 
         public static void SetSeed(string seed)
         {
@@ -65,8 +63,6 @@ public static class ChunkGenerator
                 }
             }
             
-           //CaveGenerator.GenerateCaves(chunk, cornerPosition);
-
             return chunk;
         }
 

@@ -1,7 +1,5 @@
-﻿@* Pages/Index.razor (ONLY change: replace the inline MudCard with a component call) *@
-@page "/"
+﻿@page "/"
 @using FE3.Api.Types
-@using MudBlazor
 @using FE3.Components
 @inject Uri ApiBaseUri
 @inject ModelsService ModelsService
@@ -92,25 +90,18 @@
 
             <!-- Pager -->
             <MudPaper Outlined="true" Class="pa-4 mt-4">
-                <MudStack Row
-                          Spacing="2"
-                          AlignItems="AlignItems.Center"
-                          JustifyContent="JustifyContent.SpaceBetween">
+                <MudStack Row Spacing="2" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
 
                     <MudText Typo="Typo.body2">
                         Page @(_pageIndex + 1) of @TotalPages
                     </MudText>
 
                     <MudStack Row Spacing="1">
-                        <MudButton Variant="Variant.Outlined"
-                                   Disabled="_pageIndex == 0"
-                                   OnClick="@(() => PrevPage())">
+                        <MudButton Variant="Variant.Outlined" Disabled="_pageIndex == 0" OnClick="@(() => PrevPage())">
                             Prev
                         </MudButton>
 
-                        <MudButton Variant="Variant.Outlined"
-                                   Disabled="_pageIndex >= TotalPages - 1"
-                                   OnClick="@(() => NextPage())">
+                        <MudButton Variant="Variant.Outlined" Disabled="_pageIndex >= TotalPages - 1" OnClick="@(() => NextPage())">
                             Next
                         </MudButton>
                     </MudStack>
@@ -125,7 +116,7 @@
 
 @code {
     private bool _loading = true;
-    private IReadOnlyList<ModelItem> _models = Array.Empty<ModelItem>();
+    private IReadOnlyList<ModelItem> _models = [];
     private List<ModelItem> _filtered = new();
 
     private int _pageIndex = 0;

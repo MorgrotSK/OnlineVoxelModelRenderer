@@ -1,12 +1,11 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using SEM_Drahos.Data;
 using SEM_Drahos.Data.entities;
 
 namespace SEM_Drahos.utils;
 
-public class UserHelpers
+public static class UserHelpers
 {
     public static async Task<(bool ok, User? user, IResult? error)> ValidateUserAsync(ClaimsPrincipal principal, PotDbContext db)
     {

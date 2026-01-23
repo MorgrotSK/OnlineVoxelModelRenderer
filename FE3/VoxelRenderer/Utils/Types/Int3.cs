@@ -1,4 +1,4 @@
-﻿namespace FE3.VoxelRenderer.Utils;
+﻿namespace FE3.VoxelRenderer.Utils.Types;
 
 public readonly struct Int3(int x, int y, int z)
 {

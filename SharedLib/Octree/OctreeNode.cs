@@ -1,7 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace FE3.VoxelRenderer.Utils.Octree;
+namespace SharedClass.Octree;
 
 [StructLayout(LayoutKind.Sequential)]
 public struct OctreeNode

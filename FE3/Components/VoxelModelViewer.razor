@@ -1,5 +1,4 @@
-﻿@using System.Diagnostics
-@using System.Numerics
+﻿@using System.Numerics
 @using Ab4d.SharpEngine.Cameras
 @using Ab4d.SharpEngine.Common
 @using Ab4d.SharpEngine.Core
@@ -8,7 +7,7 @@
 @using FE3.VoxelRenderer
 @using Colors = Ab4d.SharpEngine.Common.Colors
 @implements IDisposable
-@inject IJSRuntime JS
+@inject IJSRuntime Js
 
 <MudPaper Elevation="0" Outlined="true" Class="@Class" Style="@Style">
     <MudStack Spacing="2" Class="pa-4">
@@ -19,21 +18,12 @@
         }
 
         <div style="border-radius:14px; overflow:hidden; border:1px solid rgba(0,0,0,0.08)">
-            <SharpEngineSceneView @ref="_view"
-                                  CanvasWidth="@CanvasWidth"
-                                  CanvasHeight="@CanvasHeight"
-                                  style="@($"width:100%; height:{CanvasHeight}px;")" />
+            <SharpEngineSceneView @ref="_view" CanvasWidth="@CanvasWidth" CanvasHeight="@CanvasHeight" style="@($"width:100%; height:{CanvasHeight}px;")" />
         </div>
 
         @if (ShowControls)
         {
             <MudStack Spacing="1">
-                <MudStack Row Spacing="1" AlignItems="AlignItems.Center">
-                    <MudButton Variant="Variant.Outlined" OnClick="ResetView" Disabled="@(!_ready)">Reset</MudButton>
-                    <MudButton OnClick="StartSpin" Disabled="@(!_ready)">Spin</MudButton>
-                    <MudButton OnClick="StopSpin" Disabled="@(!_ready)">Stop</MudButton>
-                </MudStack>
-
                 <MudGrid Spacing="2">
                     <MudItem xs="12" sm="6" md="3">
                         <MudText Typo="Typo.caption">Distance</MudText>
@@ -109,10 +99,10 @@
     float _distance;
     float _spinSpeed;
 
-    const float _defaultHeading = 35;
-    const float _defaultAttitude = -25;
-    const float _defaultDistance = 5;
-    static readonly Vector3 _defaultTarget = new(0.5f);
+    const float DefaultHeading = 35;
+    const float DefaultAttitude = -25;
+    const float DefaultDistance = 5;
+    static readonly Vector3 DefaultTarget = new(0.5f);
 
     protected override void OnAfterRender(bool first)
     {
@@ -120,9 +110,9 @@
 
         InitScene();
 
-        _heading = _defaultHeading;
-        _attitude = _defaultAttitude;
-        _distance = _defaultDistance;
+        _heading = DefaultHeading;
+        _attitude = DefaultAttitude;
+        _distance = DefaultDistance;
         _spinSpeed = SpinSpeed;
 
         _ready = false;
@@ -180,12 +170,11 @@
         StateHasChanged();
     }
 
-    // 🔴 GREEDY STRUCT IS CREATED LOCALLY
     void AddVoxeldMesh(UnmanagedVoxelModel model)
     {
         var greedy = new GreedyVoxelModel(ref model);
         _view.Scene.RootNode.Add(greedy.BuildMesh(_diffuseGpuImage));
-        _camera!.Distance = _defaultDistance;
+        _camera!.Distance = DefaultDistance;
         _distance = _camera.Distance;
     }
 
@@ -200,10 +189,10 @@
 
         _camera = new TargetPositionCamera
         {
-            Heading = _defaultHeading,
-            Attitude = _defaultAttitude,
-            Distance = _defaultDistance,
-            TargetPosition = _defaultTarget,
+            Heading = DefaultHeading,
+            Attitude = DefaultAttitude,
+            Distance = DefaultDistance,
+            TargetPosition = DefaultTarget,
             ShowCameraLight = ShowCameraLightType.Never
         };
 
@@ -212,30 +201,9 @@
 
     void ClearNode()
     {
-        _view.Scene.RootNode.DisposeWithAllChildren(
-            disposeMeshes: true,
-            disposeMaterials: true);
+        _view.Scene.RootNode.DisposeAllChildren(true, true, true, true);
     }
-
-    public void StartSpin() => _camera?.StartRotation(_spinSpeed);
-    public void StopSpin()  => _camera?.StopRotation();
-
-    void ResetView()
-    {
-        if (_camera == null) return;
-
-        StopSpin();
-        _heading = _defaultHeading;
-        _attitude = _defaultAttitude;
-        _distance = _defaultDistance;
-
-        _camera.Heading = _heading;
-        _camera.Attitude = _attitude;
-        _camera.Distance = _distance;
-        _camera.TargetPosition = _defaultTarget;
-
-        StateHasChanged();
-    }
+    
 
     void OnDistanceChanged(float v) { _distance = v; if (_camera != null) _camera.Distance = v; }
     void OnHeadingChanged(float v)  { _heading = v; if (_camera != null) _camera.Heading = v; }
@@ -244,7 +212,7 @@
 
     public async Task CaptureAsync()
     {
-        _jsModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/CanvasTools.js");
+        _jsModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/CanvasTools.js");
         var url = await _jsModule.InvokeAsync<string?>("captureCanvasToPng", "sharpEngineCanvas_2");
 
         if (OnThumbnailDataUrl.HasDelegate)
@@ -260,6 +228,7 @@
     public void Dispose()
     {
         ClearNode();
+        _view.Scene.Dispose();
         _view?.Dispose();
         _jsModule?.DisposeAsync();
     }

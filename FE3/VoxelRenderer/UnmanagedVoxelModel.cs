@@ -1,9 +1,9 @@
 ﻿using FE3.VoxelRenderer.Blocks;
-using FE3.VoxelRenderer.Utils;
+using FE3.VoxelRenderer.Utils.Types;
+using SharedClass.UnmanagedStructures;
 
 namespace FE3.VoxelRenderer;
 using Utils.Octree;
-using Utils.UnmanagedStructures;
 
 public struct UnmanagedVoxelModel(int depth, int initialCapacity) : IDisposable
 {

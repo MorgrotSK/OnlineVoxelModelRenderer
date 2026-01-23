@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace FE3.VoxelRenderer.Utils;
+namespace SharedClass.Octree;
 
 public static class Morton3D
 {

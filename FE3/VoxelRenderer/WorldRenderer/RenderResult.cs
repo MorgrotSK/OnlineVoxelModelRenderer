@@ -1,7 +1,6 @@
-﻿using Ab4d.SharpEngine.SceneNodes;
-using FE3.VoxelRenderer.Utils;
+﻿using FE3.VoxelRenderer.Utils.Types;
 
-namespace FE3.VoxelRenderer.VoxelWorld;
+namespace FE3.VoxelRenderer.WorldRenderer;
 
 public readonly struct RenderResult
 {
