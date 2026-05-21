@@ -1,0 +1,60 @@
+﻿@page "/register"
+@using FrontEnd.Services
+
+<MudPaper Class="pa-6 mx-auto" MaxWidth="400px">
+    <MudText Typo="Typo.h5" Class="mb-4">Register</MudText>
+
+    <MudTextField @bind-Value="_username" Label="Username" Required="true" Class="mb-3" />
+
+    <MudTextField @bind-Value="_password" Label="Password" InputType="InputType.Password" Required="true" Class="mb-3" />
+
+    <MudTextField @bind-Value="_confirmPassword" Label="Confirm Password" InputType="InputType.Password" Required="true" Class="mb-4" />
+
+    <MudButton FullWidth="true" Color="Color.Primary" OnClick="Submit">
+        Create account
+    </MudButton>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">
+            @_error
+        </MudAlert>
+    }
+
+    <MudDivider Class="my-4" />
+
+    <MudText Typo="Typo.body2">
+        Already have an account?
+        <MudLink Href="/login">Login</MudLink>
+    </MudText>
+</MudPaper>
+
+@code {
+    private string _username = "";
+    private string _password = "";
+    private string _confirmPassword = "";
+    private string? _error;
+
+    [Inject] AuthService Auth { get; set; } = null!;
+    [Inject] NavigationManager Nav { get; set; } = null!;
+
+    private async Task Submit()
+    {
+        _error = null;
+
+        if (_password != _confirmPassword)
+        {
+            _error = "Passwords do not match";
+            return;
+        }
+
+        var ok = await Auth.Register(_username, _password);
+        if (!ok)
+        {
+            _error = "Registration failed";
+            return;
+        }
+
+        Nav.NavigateTo("/login");
+    }
+}
